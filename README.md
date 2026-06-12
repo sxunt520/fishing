@@ -24,13 +24,26 @@ DASHSCOPE_API_KEY=sk-your-dashscope-api-key
 AI_MODEL=qwen-vl-max
 ```
 
-Web 高德地图 Key 可在前端启动前设置：
+高德地图 Key 放在 `fishing-spot-app/.env`：
 
 ```bash
 export EXPO_PUBLIC_AMAP_WEB_KEY=你的高德Web服务Key
+export EXPO_PUBLIC_AMAP_ANDROID_KEY=你的高德Android Key
+export EXPO_PUBLIC_AMAP_IOS_KEY=你的高德iOS Key
 ```
 
-未配置高德 Key 时，Web 端会显示开发预览地图，不会白屏；配置后自动加载高德 JS API。Android/iOS 端当前使用 `react-native-maps` 地图层，后续接入高德原生 SDK 时可以继续复用 `components/MapSurface.native.tsx` 的接口。
+Web 端使用高德 JS API。Android/iOS 端使用 `expo-gaode-map` 原生高德地图 SDK，`app.config.js` 会通过 config plugin 把 Android/iOS Key 写入原生工程。未配置 Web Key 时，Web 端会显示开发预览地图，不会白屏。
+
+切换或修改 Android/iOS 高德 Key 后，需要重新生成并构建原生工程：
+
+```bash
+cd fishing-spot-app
+npx expo prebuild --clean
+npx expo run:android
+npx expo run:ios
+```
+
+注意：原生高德地图不能在 Expo Go 里直接预览，需要 development build 或正式原生包。
 
 ## 启动
 

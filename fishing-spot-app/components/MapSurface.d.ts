@@ -1,16 +1,16 @@
-import type { Region } from 'react-native-maps';
+import type { MapRegion } from '@/types/map';
 
 export type MapSurfaceHandle = {
-  animateToRegion: (region: Region) => void;
+  animateToRegion: (region: MapRegion) => void;
 };
 
 type LocationPoint = { latitude: number; longitude: number };
 
 type MapSurfaceProps = {
-  region: Region;
+  region: MapRegion;
   spots: any[];
   currentLocation: LocationPoint | null;
-  onRegionChangeComplete: (region: Region) => void;
+  onRegionChangeComplete: (region: MapRegion) => void;
   onMarkerPress: (spot: any) => void;
 };
 

@@ -1,3 +1,6 @@
 fishing-spot-api/node_modules/
 fishing-spot-app/node_modules/
 .DS_Store
+fishing-spot-app/android/
+fishing-spot-app/ios/
+fishing-spot-app/dist-web/

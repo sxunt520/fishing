@@ -1,19 +1,20 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type React from 'react';
-import type { Region } from 'react-native-maps';
 import { AMAP_WEB_KEY } from '@/constants/config';
+import type { MapRegion } from '@/types/map';
+import { regionToZoom, zoomToDelta } from '@/types/map';
 
 type LocationPoint = { latitude: number; longitude: number };
 
 export type MapSurfaceHandle = {
-  animateToRegion: (region: Region) => void;
+  animateToRegion: (region: MapRegion) => void;
 };
 
 type Props = {
-  region: Region;
+  region: MapRegion;
   spots: any[];
   currentLocation: LocationPoint | null;
-  onRegionChangeComplete: (region: Region) => void;
+  onRegionChangeComplete: (region: MapRegion) => void;
   onMarkerPress: (spot: any) => void;
 };
 
@@ -65,7 +66,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
       animateToRegion: (nextRegion) => {
         if (!mapRef.current) return;
         isProgrammaticMove.current = true;
-        mapRef.current.setZoomAndCenter(deltaToZoom(nextRegion.latitudeDelta), [
+        mapRef.current.setZoomAndCenter(regionToZoom(nextRegion), [
           nextRegion.longitude,
           nextRegion.latitude,
         ]);
@@ -83,7 +84,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
           setIsFallback(false);
           mapRef.current = new AMap.Map(containerRef.current, {
             center: [region.longitude, region.latitude],
-            zoom: deltaToZoom(region.latitudeDelta),
+          zoom: regionToZoom(region),
             resizeEnable: true,
             viewMode: '2D',
           });
@@ -102,7 +103,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
     useEffect(() => {
       if (!mapRef.current) return;
       isProgrammaticMove.current = true;
-      mapRef.current.setZoomAndCenter(deltaToZoom(region.latitudeDelta), [region.longitude, region.latitude]);
+      mapRef.current.setZoomAndCenter(regionToZoom(region), [region.longitude, region.latitude]);
       setTimeout(() => {
         isProgrammaticMove.current = false;
       }, 250);
@@ -171,15 +172,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
   },
 );
 
-function deltaToZoom(delta: number) {
-  return Math.max(3, Math.min(19, Math.round(Math.log2(360 / Math.max(delta, 0.0001)))));
-}
-
-function zoomToDelta(zoom: number) {
-  return 360 / Math.pow(2, zoom);
-}
-
-function projectToFallback(region: Region, latitude: number, longitude: number) {
+function projectToFallback(region: MapRegion, latitude: number, longitude: number) {
   const x = 50 + ((longitude - region.longitude) / region.longitudeDelta) * 100;
   const y = 50 - ((latitude - region.latitude) / region.latitudeDelta) * 100;
   return {

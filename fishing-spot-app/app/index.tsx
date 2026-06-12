@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
-import type { Region } from 'react-native-maps';//导入 `Region` 类型，用于定义地图区域的类型。
+import type { MapRegion } from '@/types/map';//导入地图区域类型，用于定义地图区域的类型。
 import BottomSheet from '@gorhom/bottom-sheet';//导入 `BottomSheet` 组件，用于在底部显示钓点详情的弹窗。
 import { useRouter } from 'expo-router';//导入 `useRouter` 钩子，用于在应用中进行页面导航。
 import { Ionicons } from '@expo/vector-icons';//导入 `Ionicons` 图标库，用于在工具栏按钮中显示图标。
@@ -13,7 +13,7 @@ import MapSurface, { MapSurfaceHandle } from '@/components/MapSurface';//导入 
 export default function MapScreen() {
   const mapRef = useRef<MapSurfaceHandle>(null);//使用 `useRef` 创建一个引用 `mapRef`，用于访问 `MapSurface` 组件的实例方法。
   const sheetRef = useRef<BottomSheet>(null);//使用 `useRef` 创建一个引用 `sheetRef`，用于访问 `BottomSheet` 组件的实例方法。
-  const [region, setRegion] = useState<Region>({//初始位置设置为北京，实际使用中可以根据需要调整或使用用户当前位置。
+  const [region, setRegion] = useState<MapRegion>({//初始位置设置为北京，实际使用中可以根据需要调整或使用用户当前位置。
     latitude: 39.9042, longitude: 116.4074,//设置地图的初始区域，包含中心点的经纬度和缩放级别（通过 `latitudeDelta` 和 `longitudeDelta` 控制）。
     latitudeDelta: 0.05, longitudeDelta: 0.05,//定义地图的初始区域，包含中心点的经纬度和缩放级别（通过 `latitudeDelta` 和 `longitudeDelta` 控制）。
   });
@@ -35,7 +35,7 @@ export default function MapScreen() {
     }
   }, [location]);
 
-  const fetchSpots = async (r: Region) => {//定义一个异步函数 `fetchSpots`，接受一个 `Region` 对象作为参数，用于获取指定区域内的钓点数据。
+  const fetchSpots = async (r: MapRegion) => {//定义一个异步函数 `fetchSpots`，接受一个 `MapRegion` 对象作为参数，用于获取指定区域内的钓点数据。
     try {
       const res: any = await spotApi.getInBounds({//调用 `spotApi.getInBounds` 方法，传入当前地图区域的边界坐标（北、南、东、西）来获取该区域内的钓点数据。
         north: r.latitude + r.latitudeDelta / 2,
@@ -47,7 +47,7 @@ export default function MapScreen() {
     } catch (e) { console.error(e); }
   };
 
-  const onRegionChangeComplete = (r: Region) => {//当地图区域变化完成时调用，更新 `region` 状态并重新获取钓点数据。
+  const onRegionChangeComplete = (r: MapRegion) => {//当地图区域变化完成时调用，更新 `region` 状态并重新获取钓点数据。
     setRegion(r);//更新 `region` 状态以反映新的地图区域。
     fetchSpots(r);//调用 `fetchSpots` 函数获取新的钓点数据，以便在地图上显示更新后的钓点信息。
   };
