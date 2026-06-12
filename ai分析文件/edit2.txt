@@ -1,0 +1,26 @@
+我要先自动分析文件内容以收集结构和函数信息，然后把分析结果保存为会话计划。开始读取并分析 app/share/edit.tsx。
+
+Created memory file plan.md
+
+已分析并把结果保存为会话计划。摘要如下（简洁版）：
+
+组件: ShareEditScreen，钓点分享编辑页面，无 props，使用全局 draft 与 user。
+主要 state: images:string[], title:string, content:string, spot:any|null, fishCategories:string[], spotEvaluation:string, aiLoading:boolean, saving:boolean。
+useEffect:
+同步 draft 到本地 spot/fishCategories/spotEvaluation。
+防抖自动保存草稿（3s），调用 draftApi.save。
+主要方法:
+addImage()：打开图库选择图片（最多 3 张），加入 images。
+removeImage(idx:number)：按索引移除图片。
+handleAI()：上传首张图 -> 调用 aiApi.generateCaption -> 填充 title/content。
+handlePublish()：若未登录跳转登录；上传本地图片（检测 ）-> 调用 postApi.create -> 清草稿并跳转成功页。
+goToTags(type)：跳转到标签选择页，带已选项参数。
+外部依赖: useRouter, Ionicons, useAppStore, postApi, draftApi, aiApi, uploadApi, ImagePicker, RN 组件与 Alert。
+UI 区块: Header、图片横向列表（含删除/添加）、标题输入、内容输入（含 AI 按钮）、钓点/鱼获/评价 行、Footer（草稿/发布）。
+验证与错误处理: 图片上限、AI 需图片、登录检查、API 调用 try/catch；自动保存错误被静默吞掉；spot 的强校验被注释。
+改进建议（优先级高）:
+处理 content:// 等非  URI 上传兼容性并严格构造上传文件对象。
+请求并处理媒体权限（ImagePicker.requestMediaLibraryPermissionsAsync）并提示用户。
+在发布前恢复/强化 spot 必填校验并在 UI 上禁用发布按钮直至满足必需项。
+自动保存失败应有可见反馈或重试机制。
+避免用数组索引用作列表 key，改用稳定 id。

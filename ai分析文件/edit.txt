@@ -1,0 +1,53 @@
+文件概览
+
+位置: edit.tsx — 一个 React Native 页面组件，用于“钓点分享”编辑/发布。
+导入
+
+React hooks & RN 组件: useState, useEffect, useCallback, View, Text, TextInput, Image, ScrollView, Alert, KeyboardAvoidingView 等。
+路由: useRouter（expo-router）。
+图标: Ionicons。
+本地 store: useAppStore（全局 draft/user 状态）。
+API 客户端: postApi, draftApi, aiApi, uploadApi（来自 @/api/client）。
+图片选择: expo-image-picker。
+组件与导出
+
+默认导出函数组件: ShareEditScreen（不接收外部 props，直接使用 store + hooks）。
+组件状态（state）
+
+images: string[] — 图片 URI 列表（本地 file:// 或已上传的远程 URL）。
+title: string — 标题。
+content: string — 正文内容。
+spot: any — 选中的钓点对象（可能含 id、name 等）。
+fishCategories: string[] — 鱼获类别标签数组。
+spotEvaluation: string — 钓点评价标签。
+aiLoading: boolean — AI 生成中 loading。
+saving: boolean — 发布中 loading。
+useEffect 副作用
+
+同步 draft 到本地 state：当 store 中 draft 改变时，初始化 spot/fishCategories/spotEvaluation。
+自动保存草稿：当 images/title/content/spot/fishCategories/spotEvaluation 变化后，3s 防抖调用 setDraft(current) 并 draftApi.save(current)。
+主要方法（事件处理）
+
+addImage：使用 ImagePicker.launchImageLibraryAsync 选择图片，最多允许 3 张；选中后把 uri 加入 images。
+removeImage(idx)：按索引删除图片。
+handleAI：把首张图片上传（构造 FormData），调用 uploadApi.uploadImages 得到 URL，再调用 aiApi.generateCaption(url)，将返回的 title/content 填入状态。处理异常并显示提示。
+handlePublish：发布流程：
+检查登录（user），否则跳转 /login。
+若存在本地  图片，构造 FormData 上传（uploadApi.uploadImages），替换为返回的 urls。
+调用 postApi.create 发送 { spotId, title, content, images, fishCategories, spotEvaluation }。
+成功后清空草稿 setDraft(null)、draftApi.clear()，跳转 /share/success；失败显示 Alert。
+goToTags(type)：跳转到标签选择页 /share/tags，通过路由传 type 与当前已选择项（序列化为 JSON）。
+UI 结构与交互要点
+
+顶部：返回、标题、信息按钮。
+图片区域：横向滚动预览、删除按钮、添加按钮（最多 3 张）。
+标题输入：单行，最大 50 字符。
+正文输入：多行，最大 500 字符，右下有 AI 按钮触发 handleAI。
+行项：钓点选择（跳转 /spot/select）、鱼获类别和钓点评价（跳转标签页）。
+底部：草稿按钮（返回）、发布按钮（触发 handlePublish，显示 loading 状态）。
+外部依赖与注意点
+
+调用的 API 方法: uploadApi.uploadImages(formData), aiApi.generateCaption(url), postApi.create(...), draftApi.save/clear(...) — 依赖后端接口约定（返回字段如 urls、AI 返回 title/content）。
+图片上传实现依赖 FormData 与 uri 字段（移动端需 type 与 name）。
+草稿自动保存使用防抖 3s；可能并发失败被静默忽略（.catch(() => {})）。
+文件 URI 判断使用 startsWith('file://') 来决定是否需要上传。
