@@ -29,6 +29,7 @@ module.exports = {
     orientation: 'portrait',
     scheme: 'fishingspot',
     userInterfaceStyle: 'light',
+    icon: './assets/icon.png',
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.fishingspot.app',
