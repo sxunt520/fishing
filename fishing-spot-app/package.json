@@ -3,8 +3,13 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
+    "postinstall": "node scripts/patch-expo-gaode-map.js",
     "start": "expo start",
     "android": "expo run:android",
+    "android:device": "expo run:android --device",
+    "logs:android": "adb logcat '*:S' ReactNative:V ReactNativeJS:V Expo:V ExpoModulesCore:V",
+    "logs:android:crash": "adb logcat -v time AndroidRuntime:E ReactNative:V ReactNativeJS:V Expo:V ExpoGaodeMap:V '*:S'",
+    "logs:android:clear": "adb logcat -c",
     "ios": "expo run:ios",
     "web": "expo start --web"
   },
@@ -15,6 +20,8 @@
     "@react-native-async-storage/async-storage": "1.23.1",
     "axios": "^1.6.0",
     "expo": "~51.0.39",
+    "expo-constants": "~16.0.2",
+    "expo-device": "~6.0.2",
     "expo-font": "~12.0.10",
     "expo-gaode-map": "^1.2.3",
     "expo-image-picker": "~15.1.0",

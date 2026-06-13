@@ -11,12 +11,41 @@ const api = axios.create({
 api.interceptors.request.use(async (config) => {
   const token = await getAuthItem('access_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  (config as any).metadata = { startedAt: Date.now() };
+  console.log(
+    '[API Request]',
+    config.method?.toUpperCase(),
+    `${config.baseURL || ''}${config.url || ''}`,
+    summarizePayload(config.params || config.data),
+  );
   return config;
 });
 
 api.interceptors.response.use(
-  (res) => res.data,
+  (res) => {
+    const startedAt = (res.config as any).metadata?.startedAt;
+    const duration = startedAt ? `${Date.now() - startedAt}ms` : '-';
+    console.log(
+      '[API Response]',
+      res.config.method?.toUpperCase(),
+      res.config.url,
+      res.status,
+      duration,
+      summarizePayload(res.data),
+    );
+    return res.data;
+  },
   async (err) => {
+    const startedAt = (err.config as any)?.metadata?.startedAt;
+    const duration = startedAt ? `${Date.now() - startedAt}ms` : '-';
+    console.log(
+      '[API Error]',
+      err.config?.method?.toUpperCase(),
+      err.config?.url,
+      err.response?.status || 'NETWORK',
+      duration,
+      summarizePayload(err.response?.data || err.message),
+    );
     if (err.response?.status === 401) {
       await deleteAuthItem('access_token');
     }
@@ -78,4 +107,26 @@ export function resolveAssetUrl(url?: string | null) {
   if (!url) return '';
   if (/^https?:\/\//i.test(url)) return url;
   return `${ASSET_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
+function summarizePayload(payload: any) {
+  if (!payload) return '';
+  if (typeof FormData !== 'undefined' && payload instanceof FormData) return '[FormData]';
+  if (typeof payload === 'string') return payload.length > 600 ? `${payload.slice(0, 600)}...` : payload;
+
+  try {
+    const seen = new WeakSet();
+    const json = JSON.stringify(payload, (key, value) => {
+      if (/password|token|authorization/i.test(key)) return '[REDACTED]';
+      if (value && typeof value === 'object') {
+        if (seen.has(value)) return '[Circular]';
+        seen.add(value);
+      }
+      if (typeof value === 'string' && value.length > 260) return `${value.slice(0, 260)}...`;
+      return value;
+    });
+    return json.length > 1000 ? `${json.slice(0, 1000)}...` : json;
+  } catch {
+    return '[Unserializable Payload]';
+  }
 }

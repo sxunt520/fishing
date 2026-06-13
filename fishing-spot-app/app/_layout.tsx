@@ -5,6 +5,9 @@ import { StyleSheet } from 'react-native';
 import { useEffect } from 'react';
 import { useAppStore } from '@/stores/useAppStore';
 import { authApi } from '@/api/client';
+import { ensureGaodePrivacyAndSdk } from '@/utils/gaodePrivacy';
+
+ensureGaodePrivacyAndSdk();
 
 export default function RootLayout() {
   const setUser = useAppStore((s) => s.setUser);
