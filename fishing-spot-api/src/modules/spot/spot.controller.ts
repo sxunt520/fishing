@@ -1,7 +1,8 @@
 import { Controller, Get, Post, Body, Query, Param, UseGuards, BadRequestException } from '@nestjs/common';
 import { SpotService } from './spot.service';
-import { CreateSpotDto } from './dto/spot.dto';
+import { CreateSpotDto, UserCandidateDto } from './dto/spot.dto';
 import { JwtGuard } from '@/common/guards/jwt.guard';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
 
 @Controller('api/v1/spots')
 export class SpotController {
@@ -89,6 +90,25 @@ export class SpotController {
       throw new BadRequestException('lat 和 lng 是必需的且必须为数字');
     }
     return this.spotService.searchWaterCandidates(keyword, parsedLat, parsedLng, parsedRadius, parsedLimit);
+  }
+
+  @Get('user-candidates/validate')
+  validateUserCandidate(
+    @Query('lat') lat: string,
+    @Query('lng') lng: string,
+  ) {
+    const parsedLat = parseFloat(lat);
+    const parsedLng = parseFloat(lng);
+    if (isNaN(parsedLat) || isNaN(parsedLng)) {
+      throw new BadRequestException('lat 和 lng 是必需的且必须为数字');
+    }
+    return this.spotService.validateUserCandidate(parsedLat, parsedLng);
+  }
+
+  @Post('user-candidates')
+  @UseGuards(JwtGuard)
+  createUserCandidate(@Body() dto: UserCandidateDto, @CurrentUser() user: any) {
+    return this.spotService.createUserCandidate(dto, user.userId);
   }
 
   @Get('ip-location')

@@ -10,10 +10,12 @@ type MapSurfaceProps = {
   region: MapRegion;
   spots: any[];
   waterCandidates?: any[];
+  pendingCandidate?: LocationPoint | null;
   currentLocation: LocationPoint | null;
   onRegionChangeComplete: (region: MapRegion) => void;
   onMarkerPress: (spot: any) => void;
   onCandidatePress?: (spot: any) => void;
+  onMapLongPress?: (location: LocationPoint) => void;
   onNativeLocation?: (location: { latitude: number; longitude: number; accuracy?: number }) => void;
 };
 

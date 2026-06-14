@@ -35,6 +35,9 @@ export class FishingSpot {
   @Column({ length: 20, default: 'admin', comment: '钓点来源：admin/user/amap' })
   source: string;
 
+  @Column({ length: 36, nullable: true, name: 'submitted_by', comment: '用户提交人' })
+  submittedBy: string;
+
   @Column({ length: 100, nullable: true, name: 'source_poi_id', unique: true, comment: '第三方 POI ID' })
   sourcePoiId: string;
 

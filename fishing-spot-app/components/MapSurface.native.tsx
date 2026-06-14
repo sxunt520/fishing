@@ -17,17 +17,19 @@ type Props = {
   region: MapRegion;
   spots: any[];
   waterCandidates?: any[];
+  pendingCandidate?: LocationPoint | null;
   currentLocation: LocationPoint | null;
   onRegionChangeComplete: (region: MapRegion) => void;
   onMarkerPress: (spot: any) => void;
   onCandidatePress?: (spot: any) => void;
+  onMapLongPress?: (location: LocationPoint) => void;
   onNativeLocation?: (location: { latitude: number; longitude: number; accuracy?: number }) => void;
 };
 
 ensureGaodePrivacyAndSdk();//在模块加载时调用 `ensureGaodePrivacyAndSdk` 函数，确保高德地图的隐私政策已同意并且 SDK 已正确加载，以便在地图组件中使用高德地图相关功能。
 
 const MapSurface = forwardRef<MapSurfaceHandle, Props>(
-  ({ region, spots, waterCandidates = [], currentLocation, onRegionChangeComplete, onMarkerPress, onCandidatePress, onNativeLocation }, ref) => {
+  ({ region, spots, waterCandidates = [], pendingCandidate, currentLocation, onRegionChangeComplete, onMarkerPress, onCandidatePress, onMapLongPress, onNativeLocation }, ref) => {
     const mapRef = useRef<MapViewRef>(null);
     const isProgrammaticMove = useRef(false);
     const [mapReady, setMapReady] = useState(false);
@@ -115,7 +117,11 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
 
     if (useEmulatorFallback) {//如果当前处于安卓模拟器环境，渲染一个自定义的预览地图界面，显示一个简单的地图背景和钓点标记，而不使用高德地图组件。
       return (
-        <View style={styles.fallbackMap}>
+        <TouchableOpacity
+          activeOpacity={1}
+          style={styles.fallbackMap}
+          onLongPress={() => onMapLongPress?.({ latitude: region.latitude, longitude: region.longitude })}
+        >
           <View style={styles.fallbackPark} />
           <View style={styles.fallbackWater} />
           <View style={styles.fallbackGrid} />
@@ -152,6 +158,22 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
               </TouchableOpacity>
             );
           })}
+          {pendingCandidate && (
+            <View
+              style={[
+                styles.fallbackPendingMarker,
+                {
+                  left: `${projectToFallback(region, pendingCandidate.latitude, pendingCandidate.longitude).x}%`,
+                  top: `${projectToFallback(region, pendingCandidate.latitude, pendingCandidate.longitude).y}%`,
+                },
+              ]}
+            >
+              <View style={styles.pendingMarkerHalo} />
+              <View style={styles.pendingMarkerPin}>
+                <Ionicons name="add" size={18} color="#fff" />
+              </View>
+            </View>
+          )}
           {currentLocation && (
             <View
               style={[
@@ -163,7 +185,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
               ]}
             />
           )}
-        </View>
+        </TouchableOpacity>
       );
     }
 
@@ -197,6 +219,14 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
             longitude: nextLocation.longitude,
             accuracy: nextLocation.accuracy,
           });
+        }}
+        onMapLongPress={(event) => {
+          const nativeEvent = event.nativeEvent as any;
+          const latitude = Number(nativeEvent.latitude);
+          const longitude = Number(nativeEvent.longitude);
+          if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+            onMapLongPress?.({ latitude, longitude });
+          }
         }}
         onCameraIdle={(event) => {//当地图的摄像机停止移动时触发，检查是否是程序matic移动，如果不是，则获取新的地图区域信息并调用 `onRegionChangeComplete` 回调函数来更新父组件中的地图区域状态。
           if (isProgrammaticMove.current) return;
@@ -246,6 +276,21 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
             </View>
           </Marker>
         ))}
+        {pendingCandidate && (
+          <Marker
+            position={pendingCandidate}
+            anchor={{ x: 0.5, y: 1 }}
+            cacheKey={`pending-${pendingCandidate.latitude.toFixed(5)}-${pendingCandidate.longitude.toFixed(5)}`}
+          >
+            <View style={styles.pendingMarker}>
+              <View style={styles.pendingMarkerHalo} />
+              <View style={styles.pendingMarkerPin}>
+                <Ionicons name="add" size={18} color="#fff" />
+              </View>
+              <View style={styles.pendingMarkerTail} />
+            </View>
+          </Marker>
+        )}
         {currentLocation && (
           <>
             <Circle
@@ -498,6 +543,58 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#fff',
     zIndex: 3,
+  },
+  pendingMarker: {
+    width: 44,
+    height: 52,
+    alignItems: 'center',
+  },
+  pendingMarkerHalo: {
+    position: 'absolute',
+    top: 2,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(14,165,233,0.2)',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#0284c7',
+  },
+  pendingMarkerPin: {
+    marginTop: 7,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#0ea5e9',
+    borderWidth: 3,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0284c7',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.32,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  pendingMarkerTail: {
+    width: 9,
+    height: 9,
+    marginTop: -5,
+    borderRadius: 2,
+    backgroundColor: '#0ea5e9',
+    transform: [{ rotate: '45deg' }],
+    borderRightWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: '#fff',
+  },
+  fallbackPendingMarker: {
+    position: 'absolute',
+    width: 44,
+    height: 52,
+    marginLeft: -22,
+    marginTop: -50,
+    alignItems: 'center',
+    zIndex: 4,
   },
 });
 

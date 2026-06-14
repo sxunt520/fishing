@@ -92,6 +92,10 @@ export const spotApi = {
     api.get('/spots/search', { params: { keyword, lat, lng, limit } }),
   searchWater: (keyword: string, lat: number, lng: number, radius = 10000, limit = 20) =>
     api.get('/spots/water-search', { params: { keyword, lat, lng, radius, limit } }),
+  validateUserCandidate: (lat: number, lng: number) =>
+    api.get('/spots/user-candidates/validate', { params: { lat, lng } }),
+  createUserCandidate: (data: { latitude: number; longitude: number; name?: string; note?: string }) =>
+    api.post('/spots/user-candidates', data),
   getIpLocation: () => api.get('/spots/ip-location'),
   getDetail: (id: string, lat?: number, lng?: number) => api.get(`/spots/${id}`, { params: { lat, lng } }),
 };

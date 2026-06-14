@@ -14,10 +14,12 @@ type Props = {
   region: MapRegion;
   spots: any[];
   waterCandidates?: any[];
+  pendingCandidate?: LocationPoint | null;
   currentLocation: LocationPoint | null;
   onRegionChangeComplete: (region: MapRegion) => void;
   onMarkerPress: (spot: any) => void;
   onCandidatePress?: (spot: any) => void;
+  onMapLongPress?: (location: LocationPoint) => void;
   onNativeLocation?: (location: { latitude: number; longitude: number; accuracy?: number }) => void;
 };
 
@@ -44,12 +46,13 @@ function loadAMap() {//定义了一个名为 `loadAMap` 的函数，用于加载
 }
 
 const MapSurface = forwardRef<MapSurfaceHandle, Props>(//定义了一个名为 `MapSurface` 的 React 组件，使用 `forwardRef` 来允许父组件通过引用访问该组件的实例方法。该组件接受地图区域、钓点数据、当前位置信息以及相关的回调函数作为 props，并在内部管理地图的加载、渲染和交互逻辑。
-  ({ region, spots, waterCandidates = [], currentLocation, onRegionChangeComplete, onMarkerPress, onCandidatePress }, ref) => {
+  ({ region, spots, waterCandidates = [], pendingCandidate, currentLocation, onRegionChangeComplete, onMarkerPress, onCandidatePress, onMapLongPress }, ref) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<any>(null);
     const markersRef = useRef<any[]>([]);
     const candidateMarkersRef = useRef<any[]>([]);
     const userMarkerRef = useRef<any>(null);
+    const pendingMarkerRef = useRef<any>(null);
     const isProgrammaticMove = useRef(false);
     const [isFallback, setIsFallback] = useState(!AMAP_WEB_KEY || AMAP_WEB_KEY === 'your-amap-web-key');
 
@@ -64,6 +67,16 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(//定义了一个名为 `
         latitudeDelta,
         longitudeDelta: latitudeDelta,
       });
+    };
+
+    const emitLongPress = (event: any) => {
+      const lnglat = event?.lnglat;
+      if (!lnglat) return;
+      const latitude = Number(lnglat.lat);
+      const longitude = Number(lnglat.lng);
+      if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+        onMapLongPress?.({ latitude, longitude });
+      }
     };
 
     useImperativeHandle(ref, () => ({//使用 `useImperativeHandle` 钩子暴露一个 `animateToRegion` 方法，使父组件能够通过引用调用该方法来控制地图的动画移动。当调用 `animateToRegion` 方法时，首先检查是否处于安卓模拟器环境，如果是，则直接调用 `onRegionChangeComplete` 回调函数来更新地图区域，而不执行动画移动。否则，使用高德地图的 API 来移动摄像机到指定的地图区域，并在动画完成后将 `isProgrammaticMove` 标志重置为 `false`。 
@@ -94,6 +107,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(//定义了一个名为 `
           });
           mapRef.current.on('moveend', emitRegion);
           mapRef.current.on('zoomend', emitRegion);
+          mapRef.current.on('rightclick', emitLongPress);
         })
         .catch(() => setIsFallback(true));
 
@@ -155,9 +169,32 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(//定义了一个名为 `
       userMarkerRef.current.setPosition([currentLocation.longitude, currentLocation.latitude]);
     }, [currentLocation]);
 
+    useEffect(() => {
+      if (!mapRef.current || !window.AMap) return;
+      if (!pendingCandidate) {
+        pendingMarkerRef.current?.setMap(null);
+        pendingMarkerRef.current = null;
+        return;
+      }
+      if (!pendingMarkerRef.current) {
+        pendingMarkerRef.current = new window.AMap.Marker({
+          anchor: 'bottom-center',
+          content: PENDING_CANDIDATE_MARKER_HTML,
+        });
+        mapRef.current.add(pendingMarkerRef.current);
+      }
+      pendingMarkerRef.current.setPosition([pendingCandidate.longitude, pendingCandidate.latitude]);
+    }, [pendingCandidate]);
+
     if (isFallback) {//如果 `isFallback` 状态为 `true`，则渲染一个自定义的预览地图界面，显示一个简单的地图背景和钓点标记，而不使用高德地图组件。该界面使用绝对定位和 CSS 样式来模拟地图的外观，并通过计算将钓点和用户位置转换为相对于当前地图区域的百分比坐标，以便在界面上正确显示。
       return (
-        <div style={fallbackStyles.map}>
+        <div
+          style={fallbackStyles.map}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            onMapLongPress?.({ latitude: region.latitude, longitude: region.longitude });
+          }}
+        >
           <div style={fallbackStyles.water} />
           <div style={fallbackStyles.parkA} />
           <div style={fallbackStyles.parkB} />
@@ -187,6 +224,16 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(//定义了一个名为 `
               />
             );
           })}
+          {pendingCandidate && (
+            <div
+              style={{
+                ...fallbackStyles.pendingMarker,
+                left: `${projectToFallback(region, pendingCandidate.latitude, pendingCandidate.longitude).x}%`,
+                top: `${projectToFallback(region, pendingCandidate.latitude, pendingCandidate.longitude).y}%`,
+              }}
+              dangerouslySetInnerHTML={{ __html: PENDING_CANDIDATE_MARKER_HTML }}
+            />
+          )}
           {currentLocation && (
             <div
               style={{
@@ -226,6 +273,19 @@ const WATER_CANDIDATE_MARKER_HTML = `
       </svg>
       <span style="position:absolute;right:5px;bottom:5px;width:9px;height:4px;border-radius:999px;background:rgba(255,255,255,.74);transform:rotate(-45deg)"></span>
     </div>
+  </div>
+`;
+
+const PENDING_CANDIDATE_MARKER_HTML = `
+  <div style="position:relative;width:44px;height:52px;display:flex;align-items:flex-start;justify-content:center">
+    <div style="position:absolute;top:2px;width:42px;height:42px;border-radius:999px;background:rgba(14,165,233,.2);border:1px dashed #0284c7;box-sizing:border-box"></div>
+    <div style="position:absolute;top:7px;width:30px;height:30px;border-radius:999px;background:#0ea5e9;border:3px solid #fff;box-shadow:0 7px 18px rgba(2,132,199,.32);display:flex;align-items:center;justify-content:center;box-sizing:border-box">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+        <path d="M12 5v14"/>
+        <path d="M5 12h14"/>
+      </svg>
+    </div>
+    <div style="position:absolute;left:17px;top:32px;width:9px;height:9px;background:#0ea5e9;border-right:2px solid #fff;border-bottom:2px solid #fff;border-radius:2px;transform:rotate(45deg);box-sizing:border-box"></div>
   </div>
 `;
 
@@ -318,6 +378,15 @@ const fallbackStyles: Record<string, React.CSSProperties> = {
     border: '3px solid #fff',
     boxShadow: '0 0 0 10px rgba(14,165,233,.16)',
     zIndex: 3,
+  },
+  pendingMarker: {
+    position: 'absolute',
+    width: 44,
+    height: 52,
+    marginLeft: -22,
+    marginTop: -52,
+    zIndex: 4,
+    pointerEvents: 'none',
   },
   label: {
     position: 'absolute',

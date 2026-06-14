@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, View, StyleSheet, TouchableOpacity, Text, TextInput } from 'react-native';
+import { ActivityIndicator, Alert, View, StyleSheet, TouchableOpacity, Text, TextInput } from 'react-native';
 import type { MapRegion } from '@/types/map';//导入地图区域类型，用于定义地图区域的类型。
 import BottomSheet from '@gorhom/bottom-sheet';//导入 `BottomSheet` 组件，用于在底部显示钓点详情的弹窗。
 import { useRouter } from 'expo-router';//导入 `useRouter` 钩子，用于在应用中进行页面导航。
@@ -13,6 +13,12 @@ import { ensureLoggedIn } from '@/utils/authPrompt';
 
 type LocationPoint = { latitude: number; longitude: number };
 type FocusReason = 'cached-location' | 'location' | 'current-location' | 'native-location' | 'pan' | 'zoom' | 'selected';
+type PendingCandidate = LocationPoint & {
+  loading: boolean;
+  submitting?: boolean;
+  validation?: any;
+  error?: string;
+};
 
 const WATER_CACHE_TTL = 10 * 60 * 1000;
 const WATER_FETCH_DISTANCE_METERS = 2000;
@@ -48,6 +54,7 @@ export default function MapScreen() {
   const [waterSearchResults, setWaterSearchResults] = useState<any[]>([]);
   const [spotSearchLoading, setSpotSearchLoading] = useState(false);
   const [waterSearchLoading, setWaterSearchLoading] = useState(false);
+  const [pendingCandidate, setPendingCandidate] = useState<PendingCandidate | null>(null);
   const router = useRouter();
   const { location, error: locationError, loading: locationLoading, requestLocation } = useLocation();//使用自定义的 `useLocation` 钩子获取用户的位置信息和请求权限的方法。
   const currentLocation = useAppStore((s) => normalizeCachedLocation(s.currentLocation));//从全局状态管理中获取当前位置信息。
@@ -312,6 +319,60 @@ export default function MapScreen() {
     sheetRef.current?.snapToIndex(0);
   }, []);
 
+  const handleMapLongPress = useCallback(async (point: LocationPoint) => {
+    if (!isValidMapLocation(point.latitude, point.longitude)) return;
+    setSearchFocused(false);
+    sheetRef.current?.close();
+    const target = {
+      latitude: point.latitude,
+      longitude: point.longitude,
+      latitudeDelta: Math.min(region.latitudeDelta, 0.01),
+      longitudeDelta: Math.min(region.longitudeDelta, 0.01),
+    };
+    focusRegion(target, true, 'selected');
+    setPendingCandidate({ ...point, loading: true });
+    try {
+      const validation: any = await spotApi.validateUserCandidate(point.latitude, point.longitude);
+      if (validation?.existingSpot) {
+        const existing = validation.existingSpot;
+        if (isCandidateSpot(existing)) cacheWaterCandidates(point, [existing]);
+        setSelectedSpot(existing);
+        sheetRef.current?.snapToIndex(0);
+        setPendingCandidate(null);
+        Alert.alert('附近已有钓点', validation.reason || '这个位置附近已经有钓点了，已为你打开详情。');
+        return;
+      }
+      setPendingCandidate({ ...point, loading: false, validation });
+    } catch (error: any) {
+      setPendingCandidate({ ...point, loading: false, error: getErrorMessage(error, '钓点校验失败，请稍后再试') });
+    }
+  }, [cacheWaterCandidates, focusRegion, region.latitudeDelta, region.longitudeDelta]);
+
+  const submitPendingCandidate = useCallback(async () => {
+    if (!pendingCandidate || pendingCandidate.submitting) return;
+    if (!ensureLoggedIn(user, router, '登录后才能新增可探索钓点。')) return;
+    setPendingCandidate((prev) => prev ? { ...prev, submitting: true } : prev);
+    try {
+      const validation = pendingCandidate.validation || {};
+      const res: any = await spotApi.createUserCandidate({
+        latitude: pendingCandidate.latitude,
+        longitude: pendingCandidate.longitude,
+        name: validation.suggestedName,
+      });
+      setPendingCandidate(null);
+      if (res?.status === 'candidate') {
+        cacheWaterCandidates({ latitude: Number(res.latitude), longitude: Number(res.longitude) }, [res]);
+        setSelectedSpot(res);
+        sheetRef.current?.snapToIndex(0);
+        Alert.alert('新增成功', res.message || '已新增为可探索钓点，可以分享你的钓鱼体验。');
+      } else {
+        Alert.alert('已提交审核', res?.message || '审核通过后会显示在地图上。');
+      }
+    } catch (error: any) {
+      setPendingCandidate((prev) => prev ? { ...prev, submitting: false, error: getErrorMessage(error, '提交失败，请稍后再试') } : prev);
+    }
+  }, [cacheWaterCandidates, pendingCandidate, router, user]);
+
   const localSearchResults = useMemo(() => {
     const keyword = searchKeyword.trim().toLowerCase();
     if (!keyword) return { real: [], candidates: [] };
@@ -449,10 +510,12 @@ export default function MapScreen() {
         region={region}
         spots={spots}
         waterCandidates={waterCandidates}
+        pendingCandidate={pendingCandidate}
         currentLocation={currentLocation}
         onRegionChangeComplete={onRegionChangeComplete}
         onMarkerPress={handleMarkerPress}
         onCandidatePress={handleCandidatePress}
+        onMapLongPress={handleMapLongPress}
         onNativeLocation={handleNativeLocation}
       />
 
@@ -513,6 +576,67 @@ export default function MapScreen() {
           </View>
         )}
       </View>
+
+      {pendingCandidate && (
+        <View style={styles.candidatePanel}>
+          <View style={styles.candidateHeader}>
+            <View style={styles.candidateIconWrap}>
+              <Ionicons name="add-circle-outline" size={20} color="#0284c7" />
+            </View>
+            <View style={styles.candidateTitleBlock}>
+              <Text style={styles.candidateTitle}>新增可探索钓点</Text>
+              <Text style={styles.candidateCoord}>
+                {pendingCandidate.latitude.toFixed(5)}, {pendingCandidate.longitude.toFixed(5)}
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.candidateClose} onPress={() => setPendingCandidate(null)}>
+              <Ionicons name="close" size={17} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+
+          {pendingCandidate.loading ? (
+            <View style={styles.candidateLoadingRow}>
+              <ActivityIndicator size="small" color="#0ea5e9" />
+              <Text style={styles.candidateHint}>正在判断附近是否有可垂钓水域...</Text>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.candidateName} numberOfLines={1}>
+                {pendingCandidate.validation?.suggestedName || '未命名可探索点'}
+              </Text>
+              <Text style={styles.candidateAddress} numberOfLines={2}>
+                {pendingCandidate.validation?.address || pendingCandidate.error || '暂无地址信息'}
+              </Text>
+              <View style={styles.candidateMetaRow}>
+                <Text style={[
+                  styles.candidateScore,
+                  pendingCandidate.validation?.allowed && styles.candidateScoreGood,
+                  !pendingCandidate.validation?.reviewable && styles.candidateScoreBad,
+                ]}>
+                  可信度 {formatConfidence(pendingCandidate.validation?.confidence)}
+                </Text>
+                <Text style={styles.candidateReason} numberOfLines={1}>
+                  {pendingCandidate.validation?.reason || pendingCandidate.error || '等待校验结果'}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.candidateSubmit,
+                  (!pendingCandidate.validation?.reviewable || pendingCandidate.submitting) && styles.candidateSubmitDisabled,
+                ]}
+                disabled={!pendingCandidate.validation?.reviewable || pendingCandidate.submitting}
+                activeOpacity={0.84}
+                onPress={submitPendingCandidate}
+              >
+                {pendingCandidate.submitting ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="navigate-circle-outline" size={18} color="#fff" />}
+                <Text style={styles.candidateSubmitText}>
+                  {pendingCandidate.validation?.allowed ? '提交为候选钓点' : pendingCandidate.validation?.reviewable ? '提交审核' : '附近未识别到水域'}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+      )}
 
       <View style={styles.toolbar}>
         <ToolButton icon="add" onPress={() => zoom(0.5)} />
@@ -695,13 +819,23 @@ function formatDistance(distance: any, type: 'real' | 'candidate') {
   return `${value}m`;
 }
 
+function formatConfidence(value: any) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '--';
+  return `${Math.round(num * 100)}%`;
+}
+
+function getErrorMessage(error: any, fallback: string) {
+  return error?.response?.data?.message || error?.message || fallback;
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   searchWrap: {
     position: 'absolute',
     left: 16,
     right: 84,
-    top: 10,
+    top: 40,
     zIndex: 20,
   },
   searchBox: {
@@ -809,6 +943,71 @@ const styles = StyleSheet.create({
   },
   searchMoreText: { color: '#0284c7', fontSize: 13, fontWeight: '800' },
   searchEmpty: { paddingVertical: 16, textAlign: 'center', color: '#94a3b8', fontSize: 13, fontWeight: '600' },
+  candidatePanel: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 104,
+    zIndex: 18,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.98)',
+    padding: 14,
+    shadowColor: '#0f172a',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.16,
+    shadowRadius: 22,
+    elevation: 10,
+  },
+  candidateHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  candidateIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#e0f2fe',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  candidateTitleBlock: { flex: 1, minWidth: 0 },
+  candidateTitle: { fontSize: 15, fontWeight: '900', color: '#0f172a' },
+  candidateCoord: { marginTop: 2, fontSize: 11, fontWeight: '700', color: '#94a3b8' },
+  candidateClose: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  candidateLoadingRow: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 9 },
+  candidateHint: { color: '#64748b', fontSize: 13, fontWeight: '700' },
+  candidateName: { marginTop: 12, color: '#0f172a', fontSize: 16, fontWeight: '900' },
+  candidateAddress: { marginTop: 5, color: '#64748b', fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  candidateMetaRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  candidateScore: {
+    overflow: 'hidden',
+    borderRadius: 999,
+    backgroundColor: '#fef3c7',
+    color: '#92400e',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  candidateScoreGood: { backgroundColor: '#dcfce7', color: '#166534' },
+  candidateScoreBad: { backgroundColor: '#fee2e2', color: '#991b1b' },
+  candidateReason: { flex: 1, minWidth: 0, color: '#64748b', fontSize: 12, fontWeight: '700' },
+  candidateSubmit: {
+    marginTop: 13,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: '#0ea5e9',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  candidateSubmitDisabled: { backgroundColor: '#94a3b8' },
+  candidateSubmitText: { color: '#fff', fontSize: 14, fontWeight: '900' },
   toolbar: {
     position: 'absolute', right: 16, top: '28%',
     backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 14,

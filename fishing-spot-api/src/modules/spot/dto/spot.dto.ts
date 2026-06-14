@@ -18,3 +18,19 @@ export class CreateSpotDto {
   @IsString({ each: true })
   fishTypes?: string[];
 }
+
+export class UserCandidateDto {
+  @IsNumber()
+  latitude: number;
+
+  @IsNumber()
+  longitude: number;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
+}
