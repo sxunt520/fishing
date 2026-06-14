@@ -25,7 +25,7 @@ declare global {
   }
 }
 
-function loadAMap() {
+function loadAMap() {//定义了一个名为 `loadAMap` 的函数，用于加载高德地图的 JavaScript API。该函数首先检查是否已经配置了高德地图的 Web Key，如果没有配置或使用了默认值，则返回一个拒绝的 Promise。然后检查是否已经加载了高德地图的 API，如果已经加载则直接返回已加载的 API 对象。如果尚未加载，则创建一个新的 Promise 来加载高德地图的 JavaScript 文件，并在加载完成后解析 Promise，返回高德地图的 API 对象。
   if (!AMAP_WEB_KEY || AMAP_WEB_KEY === 'your-amap-web-key') return Promise.reject(new Error('Missing AMap key'));
   if (window.AMap) return Promise.resolve(window.AMap);
   if (window.__amapLoader) return window.__amapLoader;
@@ -40,7 +40,7 @@ function loadAMap() {
   return window.__amapLoader;
 }
 
-const MapSurface = forwardRef<MapSurfaceHandle, Props>(
+const MapSurface = forwardRef<MapSurfaceHandle, Props>(//定义了一个名为 `MapSurface` 的 React 组件，使用 `forwardRef` 来允许父组件通过引用访问该组件的实例方法。该组件接受地图区域、钓点数据、当前位置信息以及相关的回调函数作为 props，并在内部管理地图的加载、渲染和交互逻辑。
   ({ region, spots, currentLocation, onRegionChangeComplete, onMarkerPress }, ref) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<any>(null);
@@ -49,7 +49,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
     const isProgrammaticMove = useRef(false);
     const [isFallback, setIsFallback] = useState(!AMAP_WEB_KEY || AMAP_WEB_KEY === 'your-amap-web-key');
 
-    const emitRegion = () => {
+    const emitRegion = () => {//定义了一个名为 `emitRegion` 的函数，用于获取当前地图的中心点坐标和缩放级别，并计算出新的地图区域信息（包括中心点的纬度和经度，以及纬度跨度和经度跨度）。然后调用 `onRegionChangeComplete` 回调函数，将新的地图区域信息传递给父组件，以便父组件能够更新地图区域状态并重新获取钓点数据。
       if (!mapRef.current || isProgrammaticMove.current) return;
       const center = mapRef.current.getCenter();
       const zoom = mapRef.current.getZoom();
@@ -62,7 +62,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
       });
     };
 
-    useImperativeHandle(ref, () => ({
+    useImperativeHandle(ref, () => ({//使用 `useImperativeHandle` 钩子暴露一个 `animateToRegion` 方法，使父组件能够通过引用调用该方法来控制地图的动画移动。当调用 `animateToRegion` 方法时，首先检查是否处于安卓模拟器环境，如果是，则直接调用 `onRegionChangeComplete` 回调函数来更新地图区域，而不执行动画移动。否则，使用高德地图的 API 来移动摄像机到指定的地图区域，并在动画完成后将 `isProgrammaticMove` 标志重置为 `false`。 
       animateToRegion: (nextRegion) => {
         if (!mapRef.current) return;
         isProgrammaticMove.current = true;
@@ -76,7 +76,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
       },
     }));
 
-    useEffect(() => {
+    useEffect(() => {//在组件挂载时执行，首先检查是否已经加载了高德地图的 API，如果尚未加载，则调用 `loadAMap` 函数来加载高德地图的 JavaScript 文件，并在加载完成后初始化地图实例并绑定相关事件监听器。如果加载失败，则设置 `isFallback` 状态为 `true`，以便渲染一个自定义的预览地图界面。组件卸载时销毁地图实例并清理相关资源。
       let disposed = false;
       loadAMap()
         .then((AMap) => {
@@ -100,7 +100,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
       };
     }, []);
 
-    useEffect(() => {
+    useEffect(() => {//当 `region` 发生变化时执行，首先检查是否已经加载了高德地图的 API，如果尚未加载则直接返回。然后将 `isProgrammaticMove` 标志设置为 `true`，使用高德地图的 API 来设置地图的中心点和缩放级别，以便地图能够平滑地移动到新的区域。最后，在动画完成后将 `isProgrammaticMove` 标志重置为 `false`。
       if (!mapRef.current) return;
       isProgrammaticMove.current = true;
       mapRef.current.setZoomAndCenter(regionToZoom(region), [region.longitude, region.latitude]);
@@ -109,10 +109,10 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
       }, 250);
     }, [region.latitude, region.longitude, region.latitudeDelta]);
 
-    useEffect(() => {
+    useEffect(() => {//当 `spots` 发生变化时执行，首先检查是否已经加载了高德地图的 API，如果尚未加载则直接返回。然后清除之前渲染的钓点标记，并遍历新的 `spots` 数组，为每个钓点创建一个新的地图标记，并将其添加到地图上。当用户点击标记时，调用 `onMarkerPress` 回调函数并传入对应的钓点信息，以便在父组件中处理相关逻辑（如显示钓点详情等）。
       if (!mapRef.current || !window.AMap) return;
       markersRef.current.forEach((marker) => marker.setMap(null));
-      markersRef.current = spots.map((spot) => {
+      markersRef.current = spots.map((spot) => {//遍历 `spots` 数组，为每个钓点创建一个新的地图标记，并将其添加到地图上。当用户点击标记时，调用 `onMarkerPress` 回调函数并传入对应的钓点信息，以便在父组件中处理相关逻辑（如显示钓点详情等）。
         const marker = new window.AMap.Marker({
           position: [+spot.longitude, +spot.latitude],
           anchor: 'bottom-center',
@@ -124,7 +124,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
       });
     }, [spots, onMarkerPress]);
 
-    useEffect(() => {
+    useEffect(() => {//当 `currentLocation` 发生变化时执行，首先检查是否已经加载了高德地图的 API，如果尚未加载则直接返回。然后检查是否已经创建了用户位置的标记，如果没有，则创建一个新的标记并添加到地图上。最后，更新用户位置标记的位置，以便在地图上显示用户的当前位置。
       if (!mapRef.current || !window.AMap || !currentLocation) return;
       if (!userMarkerRef.current) {
         userMarkerRef.current = new window.AMap.Marker({
@@ -136,7 +136,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
       userMarkerRef.current.setPosition([currentLocation.longitude, currentLocation.latitude]);
     }, [currentLocation]);
 
-    if (isFallback) {
+    if (isFallback) {//如果 `isFallback` 状态为 `true`，则渲染一个自定义的预览地图界面，显示一个简单的地图背景和钓点标记，而不使用高德地图组件。该界面使用绝对定位和 CSS 样式来模拟地图的外观，并通过计算将钓点和用户位置转换为相对于当前地图区域的百分比坐标，以便在界面上正确显示。
       return (
         <div style={fallbackStyles.map}>
           <div style={fallbackStyles.water} />
@@ -172,7 +172,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
   },
 );
 
-function projectToFallback(region: MapRegion, latitude: number, longitude: number) {
+function projectToFallback(region: MapRegion, latitude: number, longitude: number) {//定义了一个名为 `projectToFallback` 的函数，用于将地理坐标（纬度和经度）转换为相对于当前地图区域的百分比坐标。该函数根据当前地图区域的中心点和跨度计算出输入坐标在地图上的位置，并将其限制在一定范围内，以便在预览地图界面上正确显示。
   const x = 50 + ((longitude - region.longitude) / region.longitudeDelta) * 100;
   const y = 50 - ((latitude - region.latitude) / region.latitudeDelta) * 100;
   return {

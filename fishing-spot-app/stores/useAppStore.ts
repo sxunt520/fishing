@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-interface AppState {
+interface AppState {//定义了应用的全局状态接口 `AppState`，包含用户信息、草稿内容、当前位置信息以及相关的更新方法。
   user: any | null;
   setUser: (user: any) => void;
   logout: () => void;

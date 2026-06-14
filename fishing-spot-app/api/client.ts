@@ -8,7 +8,7 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-api.interceptors.request.use(async (config) => {
+api.interceptors.request.use(async (config) => {//在每个请求发送之前，使用请求拦截器添加认证信息和日志记录功能。
   const token = await getAuthItem('access_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   (config as any).metadata = { startedAt: Date.now() };
@@ -21,7 +21,7 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-api.interceptors.response.use(
+api.interceptors.response.use(//在每个响应返回之后，使用响应拦截器添加日志记录功能，并处理认证错误。
   (res) => {
     const startedAt = (res.config as any).metadata?.startedAt;
     const duration = startedAt ? `${Date.now() - startedAt}ms` : '-';

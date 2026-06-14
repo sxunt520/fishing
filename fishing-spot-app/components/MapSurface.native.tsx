@@ -20,18 +20,18 @@ type Props = {
   onMarkerPress: (spot: any) => void;
 };
 
-ensureGaodePrivacyAndSdk();
+ensureGaodePrivacyAndSdk();//在模块加载时调用 `ensureGaodePrivacyAndSdk` 函数，确保高德地图的隐私政策已同意并且 SDK 已正确加载，以便在地图组件中使用高德地图相关功能。
 
 const MapSurface = forwardRef<MapSurfaceHandle, Props>(
   ({ region, spots, currentLocation, onRegionChangeComplete, onMarkerPress }, ref) => {
     const mapRef = useRef<MapViewRef>(null);
     const isProgrammaticMove = useRef(false);
     const [mapReady, setMapReady] = useState(false);
-    const useEmulatorFallback = Platform.OS === 'android' && !Device.isDevice;
+    const useEmulatorFallback = Platform.OS === 'android' && !Device.isDevice;//安卓模拟器识别,不再渲染高德原生 MapView，改成一个 RN 预览地图
 
-    useImperativeHandle(ref, () => ({
+    useImperativeHandle(ref, () => ({//使用 `useImperativeHandle` 钩子暴露一个 `animateToRegion` 方法，使父组件能够通过引用调用该方法来控制地图的动画移动。
       animateToRegion: (nextRegion) => {
-        if (useEmulatorFallback) {
+        if (useEmulatorFallback) {//如果当前处于安卓模拟器环境，直接调用 `onRegionChangeComplete` 回调函数来更新地图区域，而不执行动画移动。
           onRegionChangeComplete(nextRegion);
           return;
         }
@@ -85,7 +85,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
 
     if (!mapReady) return <View style={StyleSheet.absoluteFill} />;
 
-    if (useEmulatorFallback) {
+    if (useEmulatorFallback) {//如果当前处于安卓模拟器环境，渲染一个自定义的预览地图界面，显示一个简单的地图背景和钓点标记，而不使用高德地图组件。
       return (
         <View style={styles.fallbackMap}>
           <View style={styles.fallbackPark} />
@@ -140,7 +140,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
           strokeColor: 'rgba(14,165,233,0.6)',
           locationType: 'LOCATION_ROTATE_NO_CENTER',
         }}
-        onCameraIdle={(event) => {
+        onCameraIdle={(event) => {//当地图的摄像机停止移动时触发，检查是否是程序matic移动，如果不是，则获取新的地图区域信息并调用 `onRegionChangeComplete` 回调函数来更新父组件中的地图区域状态。
           if (isProgrammaticMove.current) return;
           const { cameraPosition, latLngBounds } = event.nativeEvent;
           const center = cameraPosition.target;
@@ -148,7 +148,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
           const south = latLngBounds.southwest.latitude;
           const east = latLngBounds.northeast.longitude;
           const west = latLngBounds.southwest.longitude;
-          onRegionChangeComplete({
+          onRegionChangeComplete({//调用 `onRegionChangeComplete` 回调函数，传入新的地图区域信息，包括中心点的纬度和经度，以及纬度跨度和经度跨度，以便父组件能够更新地图区域状态并重新获取钓点数据。
             latitude: center?.latitude ?? region.latitude,
             longitude: center?.longitude ?? region.longitude,
             latitudeDelta: Math.max(0.0001, Math.abs(north - south) || zoomToDelta(cameraPosition.zoom ?? 15)),
@@ -156,7 +156,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
           });
         }}
       >
-        {spots.map((spot) => (
+        {spots.map((spot) => (//遍历 `spots` 数组，为每个钓点渲染一个地图标记。当用户点击标记时，调用 `onMarkerPress` 回调函数并传入对应的钓点信息，以便在父组件中处理相关逻辑（如显示钓点详情等）。
           <Marker
             key={spot.id}
             position={{ latitude: +spot.latitude, longitude: +spot.longitude }}

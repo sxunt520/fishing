@@ -7,10 +7,10 @@ import { useAppStore } from '@/stores/useAppStore';
 import { authApi } from '@/api/client';
 import { ensureGaodePrivacyAndSdk } from '@/utils/gaodePrivacy';
 
-ensureGaodePrivacyAndSdk();
+ensureGaodePrivacyAndSdk();//在应用启动时调用 `ensureGaodePrivacyAndSdk` 函数，确保高德地图 SDK 的隐私配置和初始化已经完成。这是为了满足高德地图的隐私政策要求，并确保地图功能能够正常使用。
 
 export default function RootLayout() {
-  const setUser = useAppStore((s) => s.setUser);
+  const setUser = useAppStore((s) => s.setUser);//从全局状态管理中获取 `setUser` 方法，用于更新用户信息。
 
   useEffect(() => {
     authApi.me().then((res) => setUser(res)).catch(() => {});
