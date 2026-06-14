@@ -32,6 +32,18 @@ export class FishingSpot {
   @Column({ default: 0, name: 'post_count' })
   postCount: number;
 
+  @Column({ length: 20, default: 'admin', comment: '钓点来源：admin/user/amap' })
+  source: string;
+
+  @Column({ length: 100, nullable: true, name: 'source_poi_id', unique: true, comment: '第三方 POI ID' })
+  sourcePoiId: string;
+
+  @Column({ length: 20, default: 'verified', comment: 'candidate/verified' })
+  status: string;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 1 })
+  confidence: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

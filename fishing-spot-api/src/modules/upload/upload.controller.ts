@@ -1,25 +1,18 @@
 import { Controller, Post, UseInterceptors, UploadedFiles, UseGuards } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { JwtGuard } from '@/common/guards/jwt.guard';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import { ConfigService } from '@nestjs/config';
+import { memoryStorage } from 'multer';
+import { CosService } from './cos.service';
 
 @Controller('api/v1/upload')
 export class UploadController {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(private readonly cosService: CosService) {}
 
   @Post('images')
   @UseGuards(JwtGuard)
   @UseInterceptors(
     FilesInterceptor('files', 3, {
-      storage: diskStorage({
-        destination: './uploads/images',
-        filename: (req, file, cb) => {
-          const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `${unique}${extname(file.originalname)}`);
-        },
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: 5 * 1024 * 1024 },
       fileFilter: (req, file, cb) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
@@ -29,9 +22,12 @@ export class UploadController {
       },
     }),
   )
-  uploadImages(@UploadedFiles() files: Express.Multer.File[]) {
-    const baseUrl = this.configService.get('APP_PUBLIC_URL', 'http://localhost:3000');
-    const urls = files.map((f) => `${baseUrl}/uploads/images/${f.filename}`);
-    return { urls };
+  async uploadImages(@UploadedFiles() files: Express.Multer.File[]) {
+    const uploaded = await Promise.all(files.map((file) => this.cosService.uploadImage(file)));
+    console.log('[Upload COS]', uploaded.map((item) => item.url));
+    return {
+      urls: uploaded.map((item) => item.url),
+      keys: uploaded.map((item) => item.key),
+    };
   }
 }

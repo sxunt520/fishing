@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { User } from './user.entity';
+import { jsonArrayTransformer } from '@/common/transformers/json-array.transformer';
 
 @Entity('drafts')
 export class Draft {
@@ -22,10 +23,10 @@ export class Draft {
   @Column({ type: 'text', nullable: true })
   content: string;
 
-  @Column({ type: 'simple-json', nullable: true })
+  @Column({ type: 'text', nullable: true, transformer: jsonArrayTransformer })
   images: string[];
 
-  @Column({ type: 'simple-json', nullable: true, name: 'fish_categories' })
+  @Column({ type: 'text', nullable: true, name: 'fish_categories', transformer: jsonArrayTransformer })
   fishCategories: string[];
 
   @Column({ nullable: true, name: 'spot_evaluation' })

@@ -69,6 +69,7 @@ module.exports = {
           locationDescription: '需要定位权限来显示附近的钓点',
         },
       ],
+      './plugins/withAndroidSystemLocation',
       'expo-font',
     ],
   },

@@ -21,6 +21,20 @@ export class Comment {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
+  @Column({ name: 'parent_id', nullable: true })
+  parentId: string;
+
+  @ManyToOne(() => Comment, { nullable: true })
+  @JoinColumn({ name: 'parent_id' })
+  parent: Comment;
+
+  @Column({ name: 'reply_to_user_id', nullable: true })
+  replyToUserId: string;
+
+  @ManyToOne(() => User, { eager: true, nullable: true })
+  @JoinColumn({ name: 'reply_to_user_id' })
+  replyToUser: User;
+
   @Column({ type: 'text' })
   content: string;
 

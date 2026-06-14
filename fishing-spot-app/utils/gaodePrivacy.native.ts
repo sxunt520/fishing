@@ -1,5 +1,4 @@
 import ExpoGaodeMapModule from 'expo-gaode-map';
-import { AMAP_ANDROID_KEY, AMAP_IOS_KEY, AMAP_WEB_KEY } from '@/constants/config';
 
 let configured = false;
 let configurePromise: Promise<void> | null = null;
@@ -16,11 +15,10 @@ export function ensureGaodePrivacyAndSdk() {
       privacyVersion: '1.0',
     });
 
-    ExpoGaodeMapModule.initSDK({//调用 `ExpoGaodeMapModule.initSDK` 方法初始化高德地图 SDK，传入相应平台的 API Key。
-      androidKey: AMAP_ANDROID_KEY,
-      iosKey: AMAP_IOS_KEY,
-      webKey: AMAP_WEB_KEY,
-    });
+    const androidKey = process.env.EXPO_PUBLIC_AMAP_ANDROID_KEY || '';
+    const iosKey = process.env.EXPO_PUBLIC_AMAP_IOS_KEY || '';
+    console.log('[Gaode] initSDK keys:', maskKey(androidKey), maskKey(iosKey));
+    ExpoGaodeMapModule.initSDK({ androidKey, iosKey });
 
     setTimeout(() => {//由于高德地图 SDK 的隐私配置和初始化可能需要一些时间，使用 `setTimeout` 模拟一个短暂的延迟，确保配置完成后再将 `configured` 设置为 `true` 并解决 Promise。
       configured = true;
@@ -29,4 +27,9 @@ export function ensureGaodePrivacyAndSdk() {
   });
 
   return configurePromise;
+}
+
+function maskKey(key: string) {
+  if (!key) return 'empty';
+  return `${key.slice(0, 6)}...${key.slice(-6)} len=${key.length}`;
 }

@@ -28,10 +28,7 @@ export class LikeService {
     // 更新帖子点赞数（注意：如果更新失败，已插入的 like 不会回滚，但概率极低，可接受）
     await this.postRepo.increment({ id: postId }, 'likeCount', 1);
 
-    // 获取最新点赞数（直接查 post 表，避免多一次查询）
-    //const updatedPost = await this.postRepo.findOne({ where: { id: postId }, select: ['likeCount'] });
-    const updatedPost = await this.postRepo.findOne({ where: { id: postId }, select: { likeCount: true } });
-    const newLikeCount = updatedPost?.likeCount || 0;
+    const newLikeCount = await this.getLikeCount(postId);
 
     // Redis 更新（非关键操作，错误不影响返回）
     this.redis.zincrby('posts:hot', 1, postId).catch(err => {
@@ -48,13 +45,14 @@ export class LikeService {
       throw new NotFoundException('未点赞');
     }
 
-    // 减少点赞计数
-    await this.postRepo.decrement({ id: postId }, 'likeCount', 1);
+    await this.postRepo
+      .createQueryBuilder()
+      .update(Post)
+      .set({ likeCount: () => 'GREATEST(like_count - 1, 0)' })
+      .where('id = :postId', { postId })
+      .execute();
 
-    // 获取最新点赞数
-    //const updatedPost = await this.postRepo.findOne({ where: { id: postId }, select: ['likeCount'] });
-    const updatedPost = await this.postRepo.findOne({ where: { id: postId }, select: { likeCount: true } });
-    const newLikeCount = updatedPost?.likeCount || 0;
+    const newLikeCount = await this.getLikeCount(postId);
 
     // Redis 更新
     this.redis.zincrby('posts:hot', -1, postId).catch(err => {
@@ -62,5 +60,10 @@ export class LikeService {
     });
 
     return { liked: false, likeCount: newLikeCount };
+  }
+
+  private async getLikeCount(postId: string) {
+    const rows = await this.postRepo.query('SELECT like_count AS likeCount FROM posts WHERE id = ? LIMIT 1', [postId]);
+    return Number(rows?.[0]?.likeCount || 0);
   }
 }

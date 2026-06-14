@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Comment } from '@/entities/comment.entity';
@@ -15,18 +15,29 @@ export class CommentService {
     const [data, total] = await this.commentRepo.findAndCount({
       where: { postId },
       //relations: ['user'],
-      relations: { user: true },
-      order: { createdAt: 'DESC' },
+      relations: { user: true, replyToUser: true },
+      order: { createdAt: 'ASC' },
       skip: (page - 1) * limit,
       take: limit,
     });
     return { data, total, page, limit };
   }
 
-  async create(postId: string, content: string, userId: string) {
-    const comment = this.commentRepo.create({ postId, userId, content });
-    await this.commentRepo.save(comment);
+  async create(postId: string, content: string, userId: string, parentId?: string, replyToUserId?: string) {
+    const safeContent = String(content || '').trim();
+    if (!safeContent) throw new BadRequestException('评论内容不能为空');
+    const comment = this.commentRepo.create({
+      postId,
+      userId,
+      content: safeContent,
+      parentId: parentId || null,
+      replyToUserId: replyToUserId || null,
+    });
+    const saved = await this.commentRepo.save(comment);
     await this.postRepo.increment({ id: postId }, 'commentCount', 1);
-    return comment;
+    return this.commentRepo.findOne({
+      where: { id: saved.id },
+      relations: { user: true, replyToUser: true },
+    });
   }
 }

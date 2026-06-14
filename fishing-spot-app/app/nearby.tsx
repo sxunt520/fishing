@@ -4,19 +4,26 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { spotApi } from '@/api/client';
 import { useAppStore } from '@/stores/useAppStore';
+import { useLocation } from '@/hooks/useLocation';
 
 export default function NearbyScreen() {
   const [spots, setSpots] = useState<any[]>([]);//定义一个状态 `spots`，用于存储获取到的钓点数据，以便在界面上显示。
   const router = useRouter();
   const currentLocation = useAppStore((s) => s.currentLocation);//从全局状态管理中获取当前位置信息，以便在界面上显示附近的钓点数据。
+  const setSelectedMapSpot = useAppStore((s) => s.setSelectedMapSpot);
+  const { requestLocation, loading: locationLoading } = useLocation();
 
   useEffect(() => {//当组件挂载或 `currentLocation` 发生变化时执行，如果当前位置信息可用，则调用 `spotApi.getNearby` 方法获取附近的钓点数据，并将获取到的数据存储在 `spots` 状态中，以便在界面上显示。
-    if (currentLocation) loadNearby();
-  }, [currentLocation]);
+    if (isValidLocation(currentLocation)) {
+      loadNearby(currentLocation);
+      return;
+    }
+    requestLocation();
+  }, [currentLocation, requestLocation]);
 
-  const loadNearby = async () => {//定义一个异步函数 `loadNearby`，用于获取当前位置信息附近的钓点数据，如果当前位置信息不可用，则调用 `requestLocation` 方法请求权限并获取位置信息。
+  const loadNearby = async (location: { latitude: number; longitude: number }) => {//定义一个异步函数 `loadNearby`，用于获取当前位置信息附近的钓点数据，如果当前位置信息不可用，则调用 `requestLocation` 方法请求权限并获取位置信息。
     try {
-      const res: any = await spotApi.getNearby(currentLocation!.latitude, currentLocation!.longitude, 2000);//调用 `spotApi.getNearby` 方法，传入当前位置信息的经纬度和搜索半径（2000米）来获取附近的钓点数据。
+      const res: any = await spotApi.getNearby(location.latitude, location.longitude, 10, 20);//调用 `spotApi.getNearby` 方法，传入当前位置信息的经纬度和搜索半径来获取附近的钓点数据。
       setSpots(res || []);//将获取到的钓点数据存储在 `spots` 状态中，以便在界面上显示。
     } catch (e) { console.error(e); }
   };
@@ -33,7 +40,13 @@ export default function NearbyScreen() {
     const fishToShow = fishArray.slice(0, 2);//从 `fishTypes` 字段中获取鱼类数据，确保其为数组格式，并且只显示前两个鱼类名称，以便在界面上展示钓点的主要鱼类信息。
 
     return (
-      <TouchableOpacity style={styles.card} onPress={() => router.back()}>
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => {
+          setSelectedMapSpot(item);
+          router.back();
+        }}
+      >
         <Image source={{ uri: `https://picsum.photos/200?random=${item.id}` }} style={styles.thumb} />
         <View style={styles.body}>
           <View style={styles.row}>
@@ -72,7 +85,7 @@ export default function NearbyScreen() {
         keyExtractor={(item) => item.id}//为每个钓点项提供一个唯一的键，通常使用钓点的 `id` 字段。
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyText}>附近暂无钓点，去分享一个吧！</Text></View>}
+        ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyText}>{locationLoading ? '正在定位附近钓点...' : '附近暂无钓点，去分享一个吧！'}</Text></View>}
       />
     </View>
   );
@@ -98,3 +111,14 @@ const styles = StyleSheet.create({
   empty: { paddingVertical: 60, alignItems: 'center' },
   emptyText: { color: '#bbb', fontSize: 14 },
 });
+
+function isValidLocation(location?: { latitude: number; longitude: number } | null): location is { latitude: number; longitude: number } {
+  if (!location) return false;
+  const latitude = Number(location.latitude);
+  const longitude = Number(location.longitude);
+  return Number.isFinite(latitude)
+    && Number.isFinite(longitude)
+    && !(latitude === 0 && longitude === 0)
+    && Math.abs(latitude) <= 90
+    && Math.abs(longitude) <= 180;
+}

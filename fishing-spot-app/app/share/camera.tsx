@@ -4,30 +4,48 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppStore } from '@/stores/useAppStore';
+import { uploadApi } from '@/api/client';
+import { ensureLoggedIn } from '@/utils/authPrompt';
 
 export default function CameraScreen() {
   const [image, setImage] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const router = useRouter();
-  const setDraft = useAppStore((s) => s.setDraft);
+  const user = useAppStore((s) => s.user);
 
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') { Alert.alert('需要相机权限'); return; }
-    const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [4, 3], quality: 0.8 });
+    const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [4, 3], quality: 0.8, base64: false });
     if (!result.canceled) setImage(result.assets[0].uri);
   };
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') { Alert.alert('需要相册权限'); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, quality: 0.8, base64: false });
     if (!result.canceled) setImage(result.assets[0].uri);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    if (!ensureLoggedIn(user, router, '登录后才能上传图片。')) return;
     const store = useAppStore.getState();
-    store.setDraft({ ...(store.draft || {}), images: image ? [image] : [] });
-    router.push('/share/edit');
+    if (!image) {
+      store.setDraft({ ...(store.draft || {}), images: [] });
+      router.push('/share/edit');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const url = await uploadImageUri(image);
+      store.setDraft({ ...(store.draft || {}), images: [url] });
+      router.push('/share/edit');
+    } catch (e: any) {
+      Alert.alert('图片上传失败', e.response?.data?.message || '请稍后重试');
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -68,8 +86,8 @@ export default function CameraScreen() {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.nextBtn} onPress={handleConfirm}>
-        <Text style={styles.nextText}>下一步</Text>
+      <TouchableOpacity style={[styles.nextBtn, uploading && { opacity: 0.6 }]} onPress={handleConfirm} disabled={uploading}>
+        <Text style={styles.nextText}>{uploading ? '上传中...' : '下一步'}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -91,3 +109,23 @@ const styles = StyleSheet.create({
   nextBtn: { marginHorizontal: 20, marginBottom: 30, backgroundColor: '#1a1a1a', height: 52, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   nextText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
+
+async function uploadImageUri(uri: string) {
+  const formData = new FormData();
+  formData.append('files', buildUploadFile(uri) as any);
+  const uploadRes: any = await uploadApi.uploadImages(formData);
+  const url = uploadRes.urls?.[0];
+  if (!url || !/^https?:\/\//i.test(url)) throw new Error('图片上传失败，未拿到腾讯云图片地址');
+  console.log('[Image Uploaded]', url);
+  return url;
+}
+
+function buildUploadFile(uri: string) {
+  const cleanUri = uri.split('?')[0];
+  const rawName = cleanUri.split('/').pop() || `fishing-${Date.now()}.jpg`;
+  const hasExt = /\.[a-zA-Z0-9]+$/.test(rawName);
+  const name = hasExt ? rawName : `${rawName}.jpg`;
+  const ext = (name.match(/\.([a-zA-Z0-9]+)$/)?.[1] || 'jpg').toLowerCase();
+  const mimeExt = ext === 'jpg' ? 'jpeg' : ext;
+  return { uri, name, type: `image/${mimeExt}` };
+}

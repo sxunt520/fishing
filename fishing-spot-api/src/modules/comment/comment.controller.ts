@@ -14,7 +14,13 @@ export class CommentController {
 
   @Post()
   @UseGuards(JwtGuard)
-  create(@Param('postId') postId: string, @Body('content') content: string, @CurrentUser() user: any) {
-    return this.commentService.create(postId, content, user.userId);
+  create(
+    @Param('postId') postId: string,
+    @Body('content') content: string,
+    @Body('parentId') parentId: string,
+    @Body('replyToUserId') replyToUserId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.commentService.create(postId, content, user.userId, parentId, replyToUserId);
   }
 }

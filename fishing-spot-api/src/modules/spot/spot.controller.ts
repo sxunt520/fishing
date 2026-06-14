@@ -37,6 +37,65 @@ export class SpotController {
 
   }
 
+  @Get('water-candidates')
+  findWaterCandidates(
+    @Query('lat') lat: string,
+    @Query('lng') lng: string,
+    @Query('radius') radius: string = '5000',
+    @Query('limit') limit: string = '30',
+  ) {
+    const parsedLat = parseFloat(lat);
+    const parsedLng = parseFloat(lng);
+    const parsedRadius = parseFloat(radius);
+    const parsedLimit = parseInt(limit, 10);
+    if (isNaN(parsedLat) || isNaN(parsedLng)) {
+      throw new BadRequestException('lat 和 lng 是必需的且必须为数字');
+    }
+    return this.spotService.findWaterCandidates(parsedLat, parsedLng, parsedRadius, parsedLimit);
+  }
+
+  @Get('search')
+  searchSpots(
+    @Query('keyword') keyword: string,
+    @Query('lat') lat?: string,
+    @Query('lng') lng?: string,
+    @Query('limit') limit: string = '20',
+  ) {
+    if (!keyword || keyword.trim().length === 0) {
+      throw new BadRequestException('keyword 是必需的');
+    }
+    const parsedLat = lat != null ? parseFloat(lat) : undefined;
+    const parsedLng = lng != null ? parseFloat(lng) : undefined;
+    const parsedLimit = parseInt(limit, 10);
+    return this.spotService.searchSpots(keyword, parsedLat, parsedLng, parsedLimit);
+  }
+
+  @Get('water-search')
+  searchWaterCandidates(
+    @Query('keyword') keyword: string,
+    @Query('lat') lat: string,
+    @Query('lng') lng: string,
+    @Query('radius') radius: string = '10000',
+    @Query('limit') limit: string = '20',
+  ) {
+    if (!keyword || keyword.trim().length === 0) {
+      throw new BadRequestException('keyword 是必需的');
+    }
+    const parsedLat = parseFloat(lat);
+    const parsedLng = parseFloat(lng);
+    const parsedRadius = parseFloat(radius);
+    const parsedLimit = parseInt(limit, 10);
+    if (isNaN(parsedLat) || isNaN(parsedLng)) {
+      throw new BadRequestException('lat 和 lng 是必需的且必须为数字');
+    }
+    return this.spotService.searchWaterCandidates(keyword, parsedLat, parsedLng, parsedRadius, parsedLimit);
+  }
+
+  @Get('ip-location')
+  findIpLocation() {
+    return this.spotService.findIpLocation();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Query('lat') lat?: number, @Query('lng') lng?: number) {
     return this.spotService.findOne(id, lat != null ? +lat : undefined, lng != null ? +lng : undefined);

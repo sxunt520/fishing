@@ -13,9 +13,12 @@ export type MapSurfaceHandle = {
 type Props = {
   region: MapRegion;
   spots: any[];
+  waterCandidates?: any[];
   currentLocation: LocationPoint | null;
   onRegionChangeComplete: (region: MapRegion) => void;
   onMarkerPress: (spot: any) => void;
+  onCandidatePress?: (spot: any) => void;
+  onNativeLocation?: (location: { latitude: number; longitude: number; accuracy?: number }) => void;
 };
 
 declare global {
@@ -41,10 +44,11 @@ function loadAMap() {//定义了一个名为 `loadAMap` 的函数，用于加载
 }
 
 const MapSurface = forwardRef<MapSurfaceHandle, Props>(//定义了一个名为 `MapSurface` 的 React 组件，使用 `forwardRef` 来允许父组件通过引用访问该组件的实例方法。该组件接受地图区域、钓点数据、当前位置信息以及相关的回调函数作为 props，并在内部管理地图的加载、渲染和交互逻辑。
-  ({ region, spots, currentLocation, onRegionChangeComplete, onMarkerPress }, ref) => {
+  ({ region, spots, waterCandidates = [], currentLocation, onRegionChangeComplete, onMarkerPress, onCandidatePress }, ref) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<any>(null);
     const markersRef = useRef<any[]>([]);
+    const candidateMarkersRef = useRef<any[]>([]);
     const userMarkerRef = useRef<any>(null);
     const isProgrammaticMove = useRef(false);
     const [isFallback, setIsFallback] = useState(!AMAP_WEB_KEY || AMAP_WEB_KEY === 'your-amap-web-key');
@@ -116,13 +120,28 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(//定义了一个名为 `
         const marker = new window.AMap.Marker({
           position: [+spot.longitude, +spot.latitude],
           anchor: 'bottom-center',
-          content: '<div style="width:18px;height:18px;border-radius:999px;background:#111;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.28)"></div>',
+          content: REAL_SPOT_MARKER_HTML,
         });
         marker.on('click', () => onMarkerPress(spot));
         mapRef.current.add(marker);
         return marker;
       });
     }, [spots, onMarkerPress]);
+
+    useEffect(() => {
+      if (!mapRef.current || !window.AMap) return;
+      candidateMarkersRef.current.forEach((marker) => marker.setMap(null));
+      candidateMarkersRef.current = waterCandidates.map((spot) => {
+        const marker = new window.AMap.Marker({
+          position: [+spot.longitude, +spot.latitude],
+          anchor: 'center',
+          content: WATER_CANDIDATE_MARKER_HTML,
+        });
+        marker.on('click', () => onCandidatePress?.(spot));
+        mapRef.current.add(marker);
+        return marker;
+      });
+    }, [waterCandidates, onCandidatePress]);
 
     useEffect(() => {//当 `currentLocation` 发生变化时执行，首先检查是否已经加载了高德地图的 API，如果尚未加载则直接返回。然后检查是否已经创建了用户位置的标记，如果没有，则创建一个新的标记并添加到地图上。最后，更新用户位置标记的位置，以便在地图上显示用户的当前位置。
       if (!mapRef.current || !window.AMap || !currentLocation) return;
@@ -152,6 +171,19 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(//定义了一个名为 `
                 onClick={() => onMarkerPress(spot)}
                 style={{ ...fallbackStyles.marker, left: `${point.x}%`, top: `${point.y}%` }}
                 aria-label={spot.name}
+                dangerouslySetInnerHTML={{ __html: REAL_SPOT_MARKER_HTML }}
+              />
+            );
+          })}
+          {waterCandidates.map((spot) => {
+            const point = projectToFallback(region, +spot.latitude, +spot.longitude);
+            return (
+              <button
+                key={spot.id || spot.sourcePoiId}
+                onClick={() => onCandidatePress?.(spot)}
+                style={{ ...fallbackStyles.candidateMarker, left: `${point.x}%`, top: `${point.y}%` }}
+                aria-label={spot.name}
+                dangerouslySetInnerHTML={{ __html: WATER_CANDIDATE_MARKER_HTML }}
               />
             );
           })}
@@ -171,6 +203,31 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(//定义了一个名为 `
     return <div ref={containerRef} style={{ position: 'absolute', inset: 0 }} />;
   },
 );
+
+const REAL_SPOT_MARKER_HTML = `
+  <div style="position:relative;width:36px;height:44px;transform:translateY(2px)">
+    <div style="width:32px;height:32px;border-radius:999px;background:#111827;border:3px solid #fff;box-shadow:0 7px 18px rgba(0,0,0,.30);display:flex;align-items:center;justify-content:center;box-sizing:border-box">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6.5 12c2.8-5.1 8.6-5.1 11.8 0-3.2 5.1-9 5.1-11.8 0Z"/>
+        <path d="M6.5 12 3.5 9.5v5L6.5 12Z"/>
+        <path d="M15.5 10.2h.01"/>
+        <path d="M12.6 8.1c1.2 2.4 1.2 5.4 0 7.8"/>
+      </svg>
+    </div>
+    <div style="position:absolute;left:11px;top:25px;width:10px;height:10px;background:#111827;border-right:2px solid #fff;border-bottom:2px solid #fff;border-radius:2px;transform:rotate(45deg);box-sizing:border-box"></div>
+  </div>
+`;
+
+const WATER_CANDIDATE_MARKER_HTML = `
+  <div style="width:40px;height:40px;border-radius:999px;background:rgba(14,165,233,.16);display:flex;align-items:center;justify-content:center">
+    <div style="position:relative;width:28px;height:32px;border-radius:15px 15px 15px 4px;background:#0ea5e9;border:3px solid #fff;box-shadow:0 7px 18px rgba(2,132,199,.30);transform:rotate(45deg);box-sizing:border-box;display:flex;align-items:center;justify-content:center">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(-45deg)" aria-hidden="true">
+        <path d="M12 2.8C8.4 7.1 6.6 10 6.6 13a5.4 5.4 0 0 0 10.8 0c0-3-1.8-5.9-5.4-10.2Z"/>
+      </svg>
+      <span style="position:absolute;right:5px;bottom:5px;width:9px;height:4px;border-radius:999px;background:rgba(255,255,255,.74);transform:rotate(-45deg)"></span>
+    </div>
+  </div>
+`;
 
 function projectToFallback(region: MapRegion, latitude: number, longitude: number) {//定义了一个名为 `projectToFallback` 的函数，用于将地理坐标（纬度和经度）转换为相对于当前地图区域的百分比坐标。该函数根据当前地图区域的中心点和跨度计算出输入坐标在地图上的位置，并将其限制在一定范围内，以便在预览地图界面上正确显示。
   const x = 50 + ((longitude - region.longitude) / region.longitudeDelta) * 100;
@@ -228,14 +285,25 @@ const fallbackStyles: Record<string, React.CSSProperties> = {
   },
   marker: {
     position: 'absolute',
-    width: 20,
-    height: 20,
-    marginLeft: -10,
-    marginTop: -10,
-    borderRadius: 20,
-    background: '#111',
-    border: '3px solid #fff',
-    boxShadow: '0 4px 14px rgba(0,0,0,.28)',
+    width: 36,
+    height: 44,
+    marginLeft: -18,
+    marginTop: -44,
+    border: 0,
+    padding: 0,
+    background: 'transparent',
+    zIndex: 2,
+    cursor: 'pointer',
+  },
+  candidateMarker: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    marginLeft: -20,
+    marginTop: -20,
+    border: 0,
+    padding: 0,
+    background: 'transparent',
     zIndex: 2,
     cursor: 'pointer',
   },

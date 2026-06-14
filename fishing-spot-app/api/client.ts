@@ -1,6 +1,10 @@
 import axios from 'axios';
+import { Alert } from 'react-native';
+import { router } from 'expo-router';
 import { API_BASE_URL, ASSET_BASE_URL } from '@/constants/config';
 import { deleteAuthItem, getAuthItem } from '@/utils/authStorage';
+
+let authAlertVisible = false;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -48,6 +52,24 @@ api.interceptors.response.use(//在每个响应返回之后，使用响应拦截
     );
     if (err.response?.status === 401) {
       await deleteAuthItem('access_token');
+      const url = err.config?.url || '';
+      if (!authAlertVisible && !url.includes('/auth/me')) {
+        authAlertVisible = true;
+        Alert.alert('请先登录', '登录后才能继续操作。', [
+          {
+            text: '稍后再说',
+            style: 'cancel',
+            onPress: () => { authAlertVisible = false; },
+          },
+          {
+            text: '去登录',
+            onPress: () => {
+              authAlertVisible = false;
+              router.push('/login');
+            },
+          },
+        ]);
+      }
     }
     return Promise.reject(err);
   }
@@ -63,7 +85,14 @@ export const authApi = {
 
 export const spotApi = {
   getInBounds: (bounds: { north: number; south: number; east: number; west: number }) => api.get('/spots', { params: bounds }),
-  getNearby: (lat: number, lng: number, radius?: number) => api.get('/spots/nearby', { params: { lat, lng, radius } }),
+  getNearby: (lat: number, lng: number, radius?: number, limit?: number) => api.get('/spots/nearby', { params: { lat, lng, radius, limit } }),
+  getWaterCandidates: (lat: number, lng: number, radius = 5000, limit = 30) =>
+    api.get('/spots/water-candidates', { params: { lat, lng, radius, limit } }),
+  search: (keyword: string, lat?: number, lng?: number, limit = 20) =>
+    api.get('/spots/search', { params: { keyword, lat, lng, limit } }),
+  searchWater: (keyword: string, lat: number, lng: number, radius = 10000, limit = 20) =>
+    api.get('/spots/water-search', { params: { keyword, lat, lng, radius, limit } }),
+  getIpLocation: () => api.get('/spots/ip-location'),
   getDetail: (id: string, lat?: number, lng?: number) => api.get(`/spots/${id}`, { params: { lat, lng } }),
 };
 
@@ -76,11 +105,17 @@ export const postApi = {
 
 export const commentApi = {
   getComments: (postId: string, page?: number) => api.get(`/posts/${postId}/comments`, { params: { page } }),
-  create: (postId: string, content: string) => api.post(`/posts/${postId}/comments`, { content }),
+  create: (postId: string, content: string, parentId?: string, replyToUserId?: string) =>
+    api.post(`/posts/${postId}/comments`, { content, parentId, replyToUserId }),
 };
 
 export const aiApi = {
-  generateCaption: (imageUrl: string) => api.post('/ai/generate-caption', { imageUrl }),
+  generateCaption: (imageUrl: string) => api.post('/ai/generate-caption', {
+    imageUrl,
+    url: imageUrl,
+    urls: [imageUrl],
+    images: [imageUrl],
+  }),
 };
 
 export const uploadApi = {
