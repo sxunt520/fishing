@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type React from 'react';
-import { AMAP_WEB_KEY } from '@/constants/config';
+import AMapLoader from '@amap/amap-jsapi-loader';
+import { AMAP_SECURITY_JS_CODE, AMAP_WEB_KEY } from '@/constants/config';
 import type { MapRegion } from '@/types/map';
 import { regionToZoom, zoomToDelta } from '@/types/map';
 
@@ -27,6 +28,7 @@ declare global {
   interface Window {
     AMap?: any;
     __amapLoader?: Promise<any>;
+    _AMapSecurityConfig?: { securityJsCode: string };
   }
 }
 
@@ -34,13 +36,14 @@ function loadAMap() {//定义了一个名为 `loadAMap` 的函数，用于加载
   if (!AMAP_WEB_KEY || AMAP_WEB_KEY === 'your-amap-web-key') return Promise.reject(new Error('Missing AMap key'));
   if (window.AMap) return Promise.resolve(window.AMap);
   if (window.__amapLoader) return window.__amapLoader;
-  window.__amapLoader = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = `https://webapi.amap.com/maps?v=2.0&key=${AMAP_WEB_KEY}`;
-    script.async = true;
-    script.onload = () => resolve(window.AMap);
-    script.onerror = reject;
-    document.head.appendChild(script);
+  if (AMAP_SECURITY_JS_CODE) {
+    window._AMapSecurityConfig = {
+      securityJsCode: AMAP_SECURITY_JS_CODE,
+    };
+  }
+  window.__amapLoader = AMapLoader.load({
+    key: AMAP_WEB_KEY,
+    version: '2.0',
   });
   return window.__amapLoader;
 }

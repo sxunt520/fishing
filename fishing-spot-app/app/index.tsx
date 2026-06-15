@@ -20,13 +20,13 @@ type PendingCandidate = LocationPoint & {
   error?: string;
 };
 
-const WATER_CACHE_TTL = 10 * 60 * 1000;
-const WATER_FETCH_DISTANCE_METERS = 2000;
-const WATER_GRID_SIZE = 0.02;
-const WATER_RADIUS = 5000;
-const WATER_LIMIT = 30;
-const PROGRAMMATIC_IDLE_MS = 4000;
-const CAMERA_IDLE_CENTER_TOLERANCE_METERS = 180;
+const WATER_CACHE_TTL = 10 * 60 * 1000;//定义一个常量 `WATER_CACHE_TTL`，用于控制水域候选点数据的缓存时间，单位为毫秒。这里设置为 10 分钟，可以根据实际需求调整。
+const WATER_FETCH_DISTANCE_METERS = 4000;//定义一个常量 `WATER_FETCH_DISTANCE_METERS`，用于控制在地图平移时多远的距离需要重新获取水域候选点数据，以避免频繁获取数据导致性能问题。
+const WATER_GRID_SIZE = 0.04;//定义一个常量 `WATER_GRID_SIZE`，用于将地图区域划分为网格，以便缓存水域候选点数据。每个网格的大小为 0.04 度（约 4 公里），可以根据需要调整以平衡缓存效率和数据准确性。
+const WATER_RADIUS = 10000;//定义一些常量，用于控制水域候选点的缓存时间、获取新数据的距离阈值、网格大小和搜索半径等。
+const WATER_LIMIT = 10;//定义一个常量 `WATER_LIMIT`，用于控制每次搜索水域候选点时返回的最大结果数量，以避免一次性加载过多数据导致性能问题。
+const PROGRAMMATIC_IDLE_MS = 4000;//定义一个常量 `PROGRAMMATIC_IDLE_MS`，用于控制在程序matic移动地图后多长时间内忽略地图的 `onRegionChangeComplete` 事件，以避免重复获取数据。
+const CAMERA_IDLE_CENTER_TOLERANCE_METERS = 180;//定义一个常量 `CAMERA_IDLE_CENTER_TOLERANCE_METERS`，用于判断地图区域变化是否仅仅是缩放操作（即中心点移动距离小于该值），如果是，则只获取钓点数据而不获取水域候选点，以优化性能。
 
 export default function MapScreen() {
   const mapRef = useRef<MapSurfaceHandle>(null);//使用 `useRef` 创建一个引用 `mapRef`，用于访问 `MapSurface` 组件的实例方法。
