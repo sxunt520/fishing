@@ -29,15 +29,7 @@ export default function NearbyScreen() {
   };
 
   const renderItem = ({ item }: { item: any }) => {
-    // 获取原始鱼类字段
-    let fishData = item.fishTypes || item.fish_types || [];
-    // 确保是数组：如果是字符串，则按需转换为数组（可以按逗号分割，或作为单元素数组）
-    const fishArray = Array.isArray(fishData) 
-      ? fishData 
-      : (typeof fishData === 'string' ? fishData.split(/[,，、]+/) : []);
-    
-    // 只显示前两个
-    const fishToShow = fishArray.slice(0, 2);//从 `fishTypes` 字段中获取鱼类数据，确保其为数组格式，并且只显示前两个鱼类名称，以便在界面上展示钓点的主要鱼类信息。
+    const fishToShow = normalizeFishTags(item.fishTypes || item.fish_types || item.fishCategories || item.fish_categories).slice(0, 2);//从鱼类字段中获取鱼类数据，确保其为数组格式，并且只显示前两个鱼类名称。
 
     return (
       <TouchableOpacity
@@ -57,13 +49,15 @@ export default function NearbyScreen() {
             <Ionicons name="location" size={12} color="#bbb" />
             <Text style={styles.addr}>{item.address}</Text>
           </View>
-          <View style={styles.tags}>
-            {fishToShow.map((t: string, i: number) => (
-              <View key={i} style={styles.tag}>
-                <Text style={styles.tagText}>{t}</Text>
-              </View>
-            ))}
-          </View>
+          {fishToShow.length > 0 && (
+            <View style={styles.tags}>
+              {fishToShow.map((t: string, i: number) => (
+                <View key={`${t}-${i}`} style={styles.tag}>
+                  <Text style={styles.tagText}>{t}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
         <Ionicons name="chevron-forward" size={20} color="#ddd" />
       </TouchableOpacity>
@@ -111,6 +105,22 @@ const styles = StyleSheet.create({
   empty: { paddingVertical: 60, alignItems: 'center' },
   emptyText: { color: '#bbb', fontSize: 14 },
 });
+
+function normalizeFishTags(value: any) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
+  if (typeof value !== 'string') return [];
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === '[]') return [];
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) return parsed.map((item) => String(item).trim()).filter(Boolean);
+  } catch {}
+  return trimmed
+    .split(/[,，、]+/)
+    .map((item) => item.trim())
+    .filter((item) => item && item !== '[]');
+}
 
 function isValidLocation(location?: { latitude: number; longitude: number } | null): location is { latitude: number; longitude: number } {
   if (!location) return false;

@@ -9,6 +9,7 @@ export const API_BASE_URL = __DEV__
 const env = process.env as Record<string, string | undefined>;
 
 export const AMAP_WEB_KEY = env.EXPO_PUBLIC_AMAP_WEB_KEY || 'your-amap-web-key';
+export const AMAP_SECURITY_JS_CODE = env.EXPO_PUBLIC_AMAP_SECURITY_JS_CODE || '';
 export const AMAP_ANDROID_KEY = env.EXPO_PUBLIC_AMAP_ANDROID_KEY || '';
 export const AMAP_IOS_KEY = env.EXPO_PUBLIC_AMAP_IOS_KEY || '';
 
