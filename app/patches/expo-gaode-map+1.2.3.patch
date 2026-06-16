@@ -1,0 +1,98 @@
+diff --git a/node_modules/expo-gaode-map/android/src/main/java/expo/modules/gaodemap/ExpoGaodeMapView.kt b/node_modules/expo-gaode-map/android/src/main/java/expo/modules/gaodemap/ExpoGaodeMapView.kt
+index 14c54ae..d9f5c5f 100644
+--- a/node_modules/expo-gaode-map/android/src/main/java/expo/modules/gaodemap/ExpoGaodeMapView.kt
++++ b/node_modules/expo-gaode-map/android/src/main/java/expo/modules/gaodemap/ExpoGaodeMapView.kt
+@@ -6,7 +6,7 @@ import android.os.SystemClock
+ import android.view.View
+ import android.view.ViewGroup
+ import com.amap.api.maps.AMap
+-import com.amap.api.maps.TextureMapView
++import com.amap.api.maps.MapView
+ import com.amap.api.maps.MapsInitializer
+ import com.amap.api.maps.model.LatLng
+ import expo.modules.kotlin.AppContext
+@@ -140,7 +140,7 @@ class ExpoGaodeMapView(context: Context, appContext: AppContext) : ExpoView(cont
+     private var lastCameraMoveDispatchAt: Long = 0L
+ 
+     // 高德地图视图
+-    private lateinit var mapView: TextureMapView
++    private lateinit var mapView: MapView
+     private lateinit var aMap: AMap
+ 
+     // 管理器
+@@ -156,7 +156,7 @@ class ExpoGaodeMapView(context: Context, appContext: AppContext) : ExpoView(cont
+             SDKInitializer.applyPrivacyState(context)
+ 
+             // 创建地图视图 - 使用 TextureMapView 以支持截图
+-            mapView = TextureMapView(context)
++            mapView = MapView(context)
+             mapView.onCreate(null)
+             
+             aMap = mapView.map
+@@ -749,7 +749,7 @@ class ExpoGaodeMapView(context: Context, appContext: AppContext) : ExpoView(cont
+             return
+         }
+ 
+-        if (child is TextureMapView) {
++        if (child is MapView) {
+             super.addView(child, index)
+             return
+         }
+@@ -797,7 +797,7 @@ class ExpoGaodeMapView(context: Context, appContext: AppContext) : ExpoView(cont
+         try {
+             val child = super.getChildAt(index)
+ 
+-            if (child is TextureMapView) {
++            if (child is MapView) {
+                 return
+             }
+ 
+diff --git a/node_modules/expo-gaode-map/android/src/main/java/expo/modules/gaodemap/overlays/PolylineView.kt b/node_modules/expo-gaode-map/android/src/main/java/expo/modules/gaodemap/overlays/PolylineView.kt
+index b179810..af1b075 100644
+--- a/node_modules/expo-gaode-map/android/src/main/java/expo/modules/gaodemap/overlays/PolylineView.kt
++++ b/node_modules/expo-gaode-map/android/src/main/java/expo/modules/gaodemap/overlays/PolylineView.kt
+@@ -160,16 +160,17 @@ class PolylineView(context: Context, appContext: AppContext) : ExpoView(context,
+             .color(strokeColor)
+             .geodesic(isGeodesic)
+           
+-          
+           // 设置虚线样式
+           try {
+-              options.isDottedLine = isDotted
+-              if (isDotted) {
+-                  options.dottedLineType = PolylineOptions.DOTTEDLINE_TYPE_SQUARE
+-              }
++            options.isDottedLine = isDotted
++            if (isDotted) {
++              options.dottedLineType = PolylineOptions.DOTTEDLINE_TYPE_SQUARE
++            } else {
++              // 空 else 分支
++            }
+           } catch (e: Throwable) {
+-              // 忽略虚线设置错误，防止崩溃
+-              android.util.Log.e("PolylineView", "设置虚线失败", e)
++            // 忽略虚线设置错误，防止崩溃
++            android.util.Log.e("PolylineView", "设置虚线失败", e)
+           }
+           
+           // 设置纹理
+@@ -202,8 +203,8 @@ class PolylineView(context: Context, appContext: AppContext) : ExpoView(context,
+                   if (resId != 0) {
+                     val bitmap = android.graphics.BitmapFactory.decodeResource(context.resources, resId)
+                     options.setCustomTexture(BitmapDescriptorFactory.fromBitmap(bitmap))
+-                  }else{
+-                    
++                  } else {
++                    // 没有找到资源，什么也不做
+                   }
+                 }
+               }
+@@ -213,6 +214,8 @@ class PolylineView(context: Context, appContext: AppContext) : ExpoView(context,
+           }
+           
+           polyline = map.addPolyline(options)
++        } else {
++          // 没有点，不创建折线
+         }
+       } catch (e: Throwable) {
+         android.util.Log.e("PolylineView", "Error creating/updating polyline", e)

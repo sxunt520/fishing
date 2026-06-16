@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
-    "postinstall": "node scripts/patch-expo-gaode-map.js",
+    "postinstall": "node scripts/patch-expo-gaode-map.js && patch-package",
     "start": "expo start",
     "android": "expo run:android",
     "android:device": "expo run:android --device",
@@ -46,6 +46,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
-    "@types/react": "~18.2.0"
+    "@types/react": "~18.2.0",
+    "patch-package": "^8.0.1"
   }
 }
