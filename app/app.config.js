@@ -24,12 +24,18 @@ const iosKey = process.env.EXPO_PUBLIC_AMAP_IOS_KEY || '';
 module.exports = {
   expo: {
     name: '钓点分享',
-    slug: 'fishing-spot-app',
+    slug: 'fishing',
     version: '1.0.0',
     orientation: 'portrait',
     scheme: 'fishingspot',
     userInterfaceStyle: 'light',
     icon: './assets/icon.png',
+    owner: "if43vip",
+    extra: { 
+      eas: {
+        projectId: "a390e6fd-158b-4cfa-98fc-11c6275399ab"
+      }
+    },
     ios: {
       supportsTablet: true,
       bundleIdentifier: 'com.fishingspot.app',

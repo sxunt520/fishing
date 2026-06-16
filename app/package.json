@@ -22,6 +22,7 @@
     "axios": "^1.6.0",
     "expo": "~51.0.39",
     "expo-constants": "~16.0.2",
+    "expo-dev-client": "~4.0.29",
     "expo-device": "~6.0.2",
     "expo-font": "~12.0.10",
     "expo-gaode-map": "^1.2.3",
