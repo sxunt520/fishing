@@ -26,6 +26,7 @@ module.exports = {
     name: '钓点分享',
     slug: 'fishing',
     version: '1.0.0',
+    license: "MIT",
     orientation: 'portrait',
     scheme: 'fishingspot',
     userInterfaceStyle: 'light',
