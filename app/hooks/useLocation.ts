@@ -61,7 +61,7 @@ export function useLocation() {//定义了一个自定义的 React Hook `useLoca
         });
       }
 
-      const gaodeLocation = await requestGaodeLocation().catch((error) => {
+      const gaodeLocation = await requestGaodeLocation().catch((error) => {//请求高德定位
         const errorText = formatLocationError(error);
         lastError = `高德定位失败: ${errorText}`;
         console.log('[Location] gaode skipped:', errorText);

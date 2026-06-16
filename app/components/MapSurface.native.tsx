@@ -198,7 +198,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
           zoom: regionToZoom(region),
         }}
         myLocationEnabled
-        followUserLocation
+        followUserLocation={false}
         compassEnabled={false}
         zoomControlsEnabled={false}
         myLocationButtonEnabled={false}
@@ -209,7 +209,7 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
           showsAccuracyRing: true,
           fillColor: 'rgba(14,165,233,0.15)',
           strokeColor: 'rgba(14,165,233,0.6)',
-          locationType: 'LOCATE',
+          locationType: 'SHOW',
         }}
         onLocation={(event) => {
           const nextLocation = event.nativeEvent;
@@ -230,17 +230,14 @@ const MapSurface = forwardRef<MapSurfaceHandle, Props>(
         }}
         onCameraIdle={(event) => {//当地图的摄像机停止移动时触发，检查是否是程序matic移动，如果不是，则获取新的地图区域信息并调用 `onRegionChangeComplete` 回调函数来更新父组件中的地图区域状态。
           if (isProgrammaticMove.current) return;
-          const { cameraPosition, latLngBounds } = event.nativeEvent;
+          const { cameraPosition } = event.nativeEvent;
           const center = cameraPosition.target;
-          const north = latLngBounds.northeast.latitude;
-          const south = latLngBounds.southwest.latitude;
-          const east = latLngBounds.northeast.longitude;
-          const west = latLngBounds.southwest.longitude;
+          const zoomDelta = zoomToDelta(cameraPosition.zoom ?? regionToZoom(region));
           onRegionChangeComplete({//调用 `onRegionChangeComplete` 回调函数，传入新的地图区域信息，包括中心点的纬度和经度，以及纬度跨度和经度跨度，以便父组件能够更新地图区域状态并重新获取钓点数据。
             latitude: center?.latitude ?? region.latitude,
             longitude: center?.longitude ?? region.longitude,
-            latitudeDelta: Math.max(0.0001, Math.abs(north - south) || zoomToDelta(cameraPosition.zoom ?? 15)),
-            longitudeDelta: Math.max(0.0001, Math.abs(east - west) || zoomToDelta(cameraPosition.zoom ?? 15)),
+            latitudeDelta: zoomDelta,
+            longitudeDelta: zoomDelta,
           });
         }}
       >
