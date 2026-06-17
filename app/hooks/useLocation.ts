@@ -17,6 +17,23 @@ export function useLocation() {//定义了一个自定义的 React Hook `useLoca
   const cachedLocation = hasUsableCachedLocation(rawCachedLocation) ? rawCachedLocation : null;
   const setCurrentLocation = useAppStore((s) => s.setCurrentLocation);
 
+  /*
+  /////////执行定位逻辑//////////
+  requestLocation() 的顺序大概是：
+    检查系统定位服务是否开启。
+    检查定位 provider 状态。
+    申请前台定位权限。
+    Android 下尝试打开网络定位 provider。
+    尝试高德定位 requestGaodeLocation()。
+    高德失败后，尝试 Android 原生系统定位 requestAndroidSystemLocation()。
+    再尝试 Expo getLastKnownPositionAsync()。
+    再尝试 Expo getCurrentPositionAsync()。
+    再尝试 Expo watch 监听一次定位。
+    最后用后端 /spots/ip-location 做 IP 城市定位兜底。
+    成功后写入：location
+    store.currentLocation
+    地图首页会监听这个值并移动地图。
+  */
   const requestLocation = useCallback(async () => {//定义了一个名为 `requestLocation` 的异步函数，用于请求用户的位置信息。该函数首先请求前台定位权限，如果权限被拒绝，则设置错误状态并在 Web 平台上使用一个默认位置作为回退。然后尝试获取当前位置信息，并将其存储在本地状态和全局状态中。如果获取位置信息失败，则设置错误状态并在 Web 平台上使用默认位置作为回退。最后，无论成功还是失败，都将加载状态设置为 `false`。
     let lastError = '';
     const applyLocation = (coords: { latitude: number; longitude: number }, source: string, nextError: string | null = null) => {
@@ -28,6 +45,7 @@ export function useLocation() {//定义了一个自定义的 React Hook `useLoca
       return loc;
     };
 
+    ///////检查系统定位服务是否开启///////
     try {
       setLoading(true);
       const servicesEnabled = await Location.hasServicesEnabledAsync();
@@ -36,7 +54,7 @@ export function useLocation() {//定义了一个自定义的 React Hook `useLoca
         console.log('[Location] providerStatus skipped:', error?.message || error);
         return null;
       });
-      if (providerStatus) {
+      if (providerStatus) {//检查定位 provider 状态
         console.log('[Location] providerStatus:', JSON.stringify(providerStatus));
       }
       if (!servicesEnabled) {
@@ -55,13 +73,14 @@ export function useLocation() {//定义了一个自定义的 React Hook `useLoca
         return cachedLocation ? applyLocation(cachedLocation, 'cached-permission-denied') : null;
       }
 
-      if (Platform.OS === 'android') {
+      if (Platform.OS === 'android') {//Android 下尝试打开网络定位 provider
         await Location.enableNetworkProviderAsync().catch((error) => {
           console.log('[Location] enableNetworkProvider skipped:', error?.message || error);
         });
       }
 
-      const gaodeLocation = await requestGaodeLocation().catch((error) => {//请求高德定位
+      //////尝试高德定位//////
+      const gaodeLocation = await requestGaodeLocation().catch((error) => {
         const errorText = formatLocationError(error);
         lastError = `高德定位失败: ${errorText}`;
         console.log('[Location] gaode skipped:', errorText);
@@ -71,6 +90,7 @@ export function useLocation() {//定义了一个自定义的 React Hook `useLoca
         return applyLocation(gaodeLocation, 'gaode current');
       }
 
+      /////// 尝试 Android 原生系统定位 requestAndroidSystemLocation() ///////
       const androidLocation = await requestAndroidSystemLocation().catch((error) => {
         lastError = `Android系统定位失败: ${formatLocationError(error)}`;
         console.log('[Location] android system skipped:', formatLocationError(error));
@@ -80,6 +100,7 @@ export function useLocation() {//定义了一个自定义的 React Hook `useLoca
         return applyLocation(androidLocation, 'android system');
       }
 
+      //////再尝试 Expo getLastKnownPositionAsync()//////
       const lastKnown = await Location.getLastKnownPositionAsync({ maxAge: 1000 * 60 * 30, requiredAccuracy: 3000 }).catch((error) => {
         lastError = `系统上次定位失败: ${error?.message || error}`;
         console.log('[Location] lastKnown skipped:', error?.message || error);
@@ -89,6 +110,7 @@ export function useLocation() {//定义了一个自定义的 React Hook `useLoca
         return applyLocation({ latitude: lastKnown.coords.latitude, longitude: lastKnown.coords.longitude }, 'lastKnown');
       }
 
+      //////再尝试 Expo getCurrentPositionAsync()//////
       const current = await withTimeout(
         Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Lowest, mayShowUserSettingsDialog: true }),
         12000,
@@ -102,6 +124,7 @@ export function useLocation() {//定义了一个自定义的 React Hook `useLoca
         return applyLocation({ latitude: current.coords.latitude, longitude: current.coords.longitude }, 'current');
       }
 
+      ///////再尝试 Expo watch 监听一次定位//////
       const watched = await getFirstWatchedLocation().catch((error) => {
         lastError = `连续定位失败: ${error?.message || error}`;
         console.log('[Location] watch skipped:', error?.message || error);
@@ -111,6 +134,7 @@ export function useLocation() {//定义了一个自定义的 React Hook `useLoca
         return applyLocation({ latitude: watched.coords.latitude, longitude: watched.coords.longitude }, 'watch');
       }
 
+      //////最后用后端 /spots/ip-location 做 IP 城市定位兜底//////
       const ipLocation = await requestIpLocation().catch((error) => {
         lastError = `IP定位失败: ${error?.message || error}`;
         console.log('[Location] ip skipped:', error?.message || error);
@@ -140,6 +164,7 @@ export function useLocation() {//定义了一个自定义的 React Hook `useLoca
   return { location, error, loading, requestLocation };
 }
 
+//尝试高德定位
 async function requestGaodeLocation() {
   if (Platform.OS === 'web') return null;
   await ensureGaodePrivacyAndSdk();

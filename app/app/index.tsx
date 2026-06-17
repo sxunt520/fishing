@@ -36,25 +36,25 @@ export default function MapScreen() {
   const hasAppliedCachedLocation = useRef(false);
   const lastFocusedLocationKey = useRef('');
   const waterCandidateCacheRef = useRef(new Map<string, { items: any[]; createdAt: number; center: LocationPoint }>());
-  const waterCandidateInFlightRef = useRef(new Set<string>());
+  const waterCandidateInFlightRef = useRef(new Set<string>());//防止同一个区域重复请求候选水域
   const lastWaterFetchCenterRef = useRef<LocationPoint | null>(null);
   const suppressMapIdleUntilRef = useRef(0);
   const programmaticMoveRef = useRef<{ center: LocationPoint; until: number } | null>(null);
   const cachedLocation = normalizeCachedLocation(useAppStore.getState().currentLocation);
-  const [region, setRegion] = useState<MapRegion>({//初始位置设置为北京，实际使用中可以根据需要调整或使用用户当前位置。
+  const [region, setRegion] = useState<MapRegion>({//当前地图中心和缩放范围,始位置设置为北京，实际使用中可以根据需要调整或使用用户当前位置。
     latitude: cachedLocation?.latitude || 39.9042, longitude: cachedLocation?.longitude || 116.4074,//优先使用上次定位，首次安装或无缓存时再回退北京。
     latitudeDelta: 0.05, longitudeDelta: 0.05,//定义地图的初始区域，包含中心点的经纬度和缩放级别（通过 `latitudeDelta` 和 `longitudeDelta` 控制）。
   });
-  const [spots, setSpots] = useState<any[]>([]);
-  const [waterCandidates, setWaterCandidates] = useState<any[]>([]);
-  const [selectedSpot, setSelectedSpot] = useState<any>(null);
+  const [spots, setSpots] = useState<any[]>([]);//真实钓点列表
+  const [waterCandidates, setWaterCandidates] = useState<any[]>([]);//候选水域列表，来自高德 POI，不直接入库
+  const [selectedSpot, setSelectedSpot] = useState<any>(null);//当前打开详情面板的钓点
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
-  const [spotSearchResults, setSpotSearchResults] = useState<any[]>([]);
-  const [waterSearchResults, setWaterSearchResults] = useState<any[]>([]);
+  const [spotSearchResults, setSpotSearchResults] = useState<any[]>([]);//真实钓点搜索结果
+  const [waterSearchResults, setWaterSearchResults] = useState<any[]>([]);//候选水域搜索结果
   const [spotSearchLoading, setSpotSearchLoading] = useState(false);
   const [waterSearchLoading, setWaterSearchLoading] = useState(false);
-  const [pendingCandidate, setPendingCandidate] = useState<PendingCandidate | null>(null);
+  const [pendingCandidate, setPendingCandidate] = useState<PendingCandidate | null>(null);//用户长按地图准备新增的候选点
   const router = useRouter();
   const { location, error: locationError, loading: locationLoading, requestLocation } = useLocation();//使用自定义的 `useLocation` 钩子获取用户的位置信息和请求权限的方法。
   const currentLocation = useAppStore((s) => normalizeCachedLocation(s.currentLocation));//从全局状态管理中获取当前位置信息。
@@ -68,7 +68,7 @@ export default function MapScreen() {
   const removeCandidateKeys = useCallback((keys: Set<string>) => {
     if (keys.size === 0) return;
     setWaterCandidates((prev) => prev.filter((item) => !keys.has(getCandidateKey(item))));
-    waterCandidateCacheRef.current.forEach((cache, key) => {
+    waterCandidateCacheRef.current.forEach((cache, key) => {//候选水域前端内存缓存
       const nextItems = cache.items.filter((item) => !keys.has(getCandidateKey(item)));
       if (nextItems.length === cache.items.length) return;
       if (nextItems.length === 0) {
