@@ -1,3 +1,7 @@
+diff --git a/node_modules/expo-gaode-map/.DS_Store b/node_modules/expo-gaode-map/.DS_Store
+new file mode 100644
+index 0000000..45d7d7b
+Binary files /dev/null and b/node_modules/expo-gaode-map/.DS_Store differ
 diff --git a/node_modules/expo-gaode-map/android/src/main/java/expo/modules/gaodemap/ExpoGaodeMapView.kt b/node_modules/expo-gaode-map/android/src/main/java/expo/modules/gaodemap/ExpoGaodeMapView.kt
 index 14c54ae..d9f5c5f 100644
 --- a/node_modules/expo-gaode-map/android/src/main/java/expo/modules/gaodemap/ExpoGaodeMapView.kt
@@ -48,7 +52,7 @@ index 14c54ae..d9f5c5f 100644
              }
  
 diff --git a/node_modules/expo-gaode-map/android/src/main/java/expo/modules/gaodemap/overlays/PolylineView.kt b/node_modules/expo-gaode-map/android/src/main/java/expo/modules/gaodemap/overlays/PolylineView.kt
-index b179810..af1b075 100644
+index b179810..d56c47a 100644
 --- a/node_modules/expo-gaode-map/android/src/main/java/expo/modules/gaodemap/overlays/PolylineView.kt
 +++ b/node_modules/expo-gaode-map/android/src/main/java/expo/modules/gaodemap/overlays/PolylineView.kt
 @@ -160,16 +160,17 @@ class PolylineView(context: Context, appContext: AppContext) : ExpoView(context,
@@ -87,12 +91,14 @@ index b179810..af1b075 100644
                    }
                  }
                }
-@@ -213,6 +214,8 @@ class PolylineView(context: Context, appContext: AppContext) : ExpoView(context,
+@@ -213,7 +214,10 @@ class PolylineView(context: Context, appContext: AppContext) : ExpoView(context,
            }
            
            polyline = map.addPolyline(options)
 +        } else {
 +          // 没有点，不创建折线
          }
++
        } catch (e: Throwable) {
          android.util.Log.e("PolylineView", "Error creating/updating polyline", e)
+       }
