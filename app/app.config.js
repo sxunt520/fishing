@@ -43,6 +43,7 @@ module.exports = {
       infoPlist: {
         NSLocationWhenInUseUsageDescription: '需要定位权限来显示附近的钓点',
         NSCameraUsageDescription: '需要相机权限来拍摄钓鱼照片',
+        "ITSAppUsesNonExemptEncryption": false,
       },
     },
     android: {
