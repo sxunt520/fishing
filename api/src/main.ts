@@ -34,10 +34,23 @@ async function bootstrap() {
     .setTitle('钓点分享 API')
     .setDescription('Fishing Spot Sharing Platform API Docs')
     .setVersion('1.0')
-    .addBearerAuth()
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: '请输入登录接口返回的 accessToken，不需要添加 Bearer 前缀',
+      },
+      'bearer',
+    )
+    .addSecurityRequirements('bearer')
     .build();
   const swagger = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api-docs', app, swagger);
+  SwaggerModule.setup('api-docs', app, swagger, {
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  });
 
   await app.listen(process.env.PORT || 3000);
   console.log(`🎣 Server running on http://localhost:${process.env.PORT || 3000}`);

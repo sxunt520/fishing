@@ -84,37 +84,37 @@ export const authApi = {
 };
 
 export const spotApi = {
-  getInBounds: (bounds: { north: number; south: number; east: number; west: number }) => api.get('/spots', { params: bounds }),
-  getNearby: (lat: number, lng: number, radius?: number, limit?: number) => api.get('/spots/nearby', { params: { lat, lng, radius, limit } }),
+  getInBounds: (bounds: { north: number; south: number; east: number; west: number }) => api.get('/spots', { params: bounds }),//获取地图范围内真实钓点
+  getNearby: (lat: number, lng: number, radius?: number, limit?: number) => api.get('/spots/nearby', { params: { lat, lng, radius, limit } }),//获取附近真实钓点
   getWaterCandidates: (lat: number, lng: number, radius = 5000, limit = 30) =>
-    api.get('/spots/water-candidates', { params: { lat, lng, radius, limit } }),
+    api.get('/spots/water-candidates', { params: { lat, lng, radius, limit } }),//获取附近候选水域
   search: (keyword: string, lat?: number, lng?: number, limit = 20) =>
-    api.get('/spots/search', { params: { keyword, lat, lng, limit } }),
+    api.get('/spots/search', { params: { keyword, lat, lng, limit } }),//搜索真实钓点
   searchWater: (keyword: string, lat: number, lng: number, radius = 10000, limit = 20) =>
-    api.get('/spots/water-search', { params: { keyword, lat, lng, radius, limit } }),
+    api.get('/spots/water-search', { params: { keyword, lat, lng, radius, limit } }),//搜索更多候选水域
   validateUserCandidate: (lat: number, lng: number) =>
-    api.get('/spots/user-candidates/validate', { params: { lat, lng } }),
+    api.get('/spots/user-candidates/validate', { params: { lat, lng } }),//校验用户长按位置
   createUserCandidate: (data: { latitude: number; longitude: number; name?: string; note?: string }) =>
-    api.post('/spots/user-candidates', data),
-  getIpLocation: () => api.get('/spots/ip-location'),
-  getDetail: (id: string, lat?: number, lng?: number) => api.get(`/spots/${id}`, { params: { lat, lng } }),
+    api.post('/spots/user-candidates', data),//创建用户候选钓点
+  getIpLocation: () => api.get('/spots/ip-location'),//IP 城市定位
+  getDetail: (id: string, lat?: number, lng?: number) => api.get(`/spots/${id}`, { params: { lat, lng } }),//获取钓点详情
 };
 
 export const postApi = {
-  getBySpot: (spotId: string, page?: number) => api.get(`/spots/${spotId}/posts`, { params: { page } }),
-  create: (data: any) => api.post('/posts', data),
-  like: (postId: string) => api.post(`/posts/${postId}/like`),
-  unlike: (postId: string) => api.delete(`/posts/${postId}/like`),
+  getBySpot: (spotId: string, page?: number) => api.get(`/spots/${spotId}/posts`, { params: { page } }),//获取钓点分享列表
+  create: (data: any) => api.post('/posts', data),//发布钓点分享
+  like: (postId: string) => api.post(`/posts/${postId}/like`),//点赞钓点分享
+  unlike: (postId: string) => api.delete(`/posts/${postId}/like`),//取消点赞钓点分享
 };
 
 export const commentApi = {
-  getComments: (postId: string, page?: number) => api.get(`/posts/${postId}/comments`, { params: { page } }),
+  getComments: (postId: string, page?: number) => api.get(`/posts/${postId}/comments`, { params: { page } }),//获取评论列表
   create: (postId: string, content: string, parentId?: string, replyToUserId?: string) =>
-    api.post(`/posts/${postId}/comments`, { content, parentId, replyToUserId }),
+    api.post(`/posts/${postId}/comments`, { content, parentId, replyToUserId }),//发表评论或回复
 };
 
 export const aiApi = {
-  generateCaption: (imageUrl: string) => api.post('/ai/generate-caption', {
+  generateCaption: (imageUrl: string) => api.post('/ai/generate-caption', {//根据图片生成标题和正文
     imageUrl,
     url: imageUrl,
     urls: [imageUrl],
@@ -123,7 +123,7 @@ export const aiApi = {
 };
 
 export const uploadApi = {
-  uploadImages: (formData: FormData) => api.post('/upload/images', formData, {
+  uploadImages: (formData: FormData) => api.post('/upload/images', formData, {//图片上传
     headers: { 'Content-Type': 'multipart/form-data' },
   }).then((res: any) => ({
     ...res,
@@ -132,14 +132,14 @@ export const uploadApi = {
 };
 
 export const draftApi = {
-  get: () => api.get('/drafts'),
-  save: (data: any) => api.post('/drafts', data),
-  clear: () => api.delete('/drafts'),
+  get: () => api.get('/drafts'),//获取草稿
+  save: (data: any) => api.post('/drafts', data),//保存草稿
+  clear: () => api.delete('/drafts'),//清空草稿
 };
 
 export const tagApi = {
-  getFish: () => api.get('/tags/fish-categories'),
-  getEvaluations: () => api.get('/tags/spot-evaluations'),
+  getFish: () => api.get('/tags/fish-categories'),//获取鱼获类别
+  getEvaluations: () => api.get('/tags/spot-evaluations'),//获取钓点评价
 };
 
 export function resolveAssetUrl(url?: string | null) {
