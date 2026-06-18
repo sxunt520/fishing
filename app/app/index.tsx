@@ -91,6 +91,14 @@ export default function MapScreen() {
     removeCandidateKeys(keys);
   }, [removeCandidateKeys]);
 
+  /*
+  加载真实钓点
+    1.根据地图范围计算 north/south/east/west。
+    2.请求 GET /spots。
+    3.返回数据库里的真实钓点。
+    4.写入 spots。
+    5.如果真实钓点和候选水域重复，把候选水域移除。
+  */
   const fetchRealSpots = useCallback(async (r: MapRegion) => {
     if (!isValidMapLocation(r.latitude, r.longitude)) {
       console.log('[Map] skip fetch invalid region:', r.latitude, r.longitude);
@@ -132,6 +140,19 @@ export default function MapScreen() {
     mergeWaterCandidates(candidates);
   }, [mergeWaterCandidates]);
 
+  /**
+  按缓存策略加载候选水域
+    1.如果是缩放 zoom，不请求候选水域。
+    2.如果是选中钓点 selected，不请求候选水域。
+    3.根据经纬度计算网格 key。
+    4.如果当前网格缓存还有效，直接用缓存。
+    5.如果当前网格正在请求，跳过。
+    6.如果地图拖动距离不足阈值，跳过。
+    7.请求 GET /spots/water-candidates。
+    8.返回高德 POI 候选水域。
+    9.写入内存缓存。
+    10.合并进 waterCandidates。
+   */
   const fetchWaterCandidatesIfNeeded = useCallback(async (r: MapRegion, reason: FocusReason) => {
     if (reason === 'zoom' || reason === 'selected') return;
     const center = { latitude: r.latitude, longitude: r.longitude };
@@ -179,12 +200,14 @@ export default function MapScreen() {
     }
   }, [mergeWaterCandidates, removeCandidateKeys]);
 
+  //地图数据总入口
   const fetchMapData = useCallback(async (r: MapRegion, reason: FocusReason) => {
     const realSpots = await fetchRealSpots(r);
     removeCandidatesForRealSpots(realSpots);
     fetchWaterCandidatesIfNeeded(r, reason);
   }, [fetchRealSpots, fetchWaterCandidatesIfNeeded, removeCandidatesForRealSpots]);
 
+  //移动地图并触发数据加载
   const focusRegion = useCallback((r: MapRegion, shouldAnimate = false, reason: FocusReason = 'pan') => {//定义一个函数 `focusRegion`，接受一个 `MapRegion` 对象和一个可选的布尔参数 `shouldAnimate`，用于更新地图区域并获取新的钓点数据。
     if (!isValidMapLocation(r.latitude, r.longitude)) {
       console.log('[Map] skip invalid region:', r.latitude, r.longitude);
@@ -278,6 +301,7 @@ export default function MapScreen() {
     focusRegion(r, false, 'pan');//更新地图区域，并获取新的钓点数据。
   };
 
+  //地图缩放
   const zoom = (factor: number) => {//根据传入的缩放因子调整 `latitudeDelta` 和 `longitudeDelta`，实现地图的缩放功能。
     const nextRegion = {
       ...region,
@@ -287,6 +311,7 @@ export default function MapScreen() {
     focusRegion(nextRegion, true, 'zoom');
   };
 
+  //回到我的位置
   const goToMyLocation = async () => {//如果当前位置信息不可用，调用 `requestLocation` 方法请求权限并获取位置信息。
     const nextLocation = await requestLocation();
     const coords = 'coords' in (nextLocation || {}) ? (nextLocation as any).coords : nextLocation;
@@ -311,16 +336,19 @@ export default function MapScreen() {
     }, true, 'native-location');
   }, [focusRegion, setCurrentLocation]);
 
+  //点击真实钓点
   const handleMarkerPress = useCallback((spot: any) => {//当用户点击地图上的钓点标记时调用，设置选中的钓点并打开底部弹窗显示钓点详情。
     setSelectedSpot(spot);//更新 `selectedSpot` 状态以存储当前选中的钓点信息。
     sheetRef.current?.snapToIndex(0);//调用 `snapToIndex` 方法将底部弹窗打开到第一个位置，以显示钓点详情。
   }, []);
 
+  //点击候选水域
   const handleCandidatePress = useCallback((candidate: any) => {
     setSelectedSpot(candidate);
     sheetRef.current?.snapToIndex(0);
   }, []);
 
+  //长按地图新增候选点
   const handleMapLongPress = useCallback(async (point: LocationPoint) => {
     if (!isValidMapLocation(point.latitude, point.longitude)) return;
     setSearchFocused(false);
@@ -350,6 +378,7 @@ export default function MapScreen() {
     }
   }, [cacheWaterCandidates, focusRegion, region.latitudeDelta, region.longitudeDelta]);
 
+  //确认新增候选点
   const submitPendingCandidate = useCallback(async () => {
     if (!pendingCandidate || pendingCandidate.submitting) return;
     if (!ensureLoggedIn(user, router, '登录后才能新增可探索钓点。')) return;
@@ -421,6 +450,7 @@ export default function MapScreen() {
     return () => clearTimeout(timer);
   }, [currentLocation, region.latitude, region.longitude, searchKeyword]);
 
+  //打开搜索结果
   const openSearchResult = useCallback((item: any) => {
     if (!isValidMapLocation(Number(item.latitude), Number(item.longitude))) return;
     const target = {
@@ -438,6 +468,7 @@ export default function MapScreen() {
     sheetRef.current?.snapToIndex(0);
   }, [cacheWaterCandidates, focusRegion]);
 
+  //手动搜索更多附近水域
   const searchMoreWater = useCallback(async () => {
     const keyword = searchKeyword.trim();
     if (!keyword || waterSearchLoading) return;
